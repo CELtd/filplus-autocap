@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "filplus-autocap"
+version = "0.1.0"
+description = "Programmable datacap allocator for Filecoin"
+authors = ["luca-nik <luca.nicoli.engineer@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+numpy = "^2.2.4"
+pandas = "^2.2.3"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.5"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
