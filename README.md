@@ -51,9 +51,7 @@ poetry install
 
 ## Documentation
 
-- [`docs/design.md`](docs/design.md) — Technical design and allocation formula  
-- [`docs/rationale.md`](docs/rationale.md) — Economic and incentive rationale  
-- [`docs/architecture.md`](docs/architecture.md) — Project structure & smart contract roadmap
+- [`docs/design.md`](docs/scheme.md) — Design scheme  
 
 ---
 
