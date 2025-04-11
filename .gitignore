@@ -1,0 +1,44 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Poetry virtualenvs (if not in project root)
+poetry.lock
+.cache/
+.python-version
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Pytest
+.pytest_cache/
+coverage.xml
+htmlcov/
+.tox/
+
+# Jupyter notebooks (if used)
+.ipynb_checkpoints/
+
+# VS Code and other IDE/editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS system files
+.DS_Store
+
+# Logs
+*.log
+
+# Local test data
+data/
+output/

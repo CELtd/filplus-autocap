@@ -1,0 +1,1 @@
+GAS_PRICE = 1.0 #FIL

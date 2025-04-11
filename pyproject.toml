@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "Programmable datacap allocator for Filecoin"
 authors = ["luca-nik <luca.nicoli.engineer@gmail.com>"]
 readme = "README.md"
+packages = [
+    { include = "filplus_autocap", from = "src" }
+]
 
 [tool.poetry.dependencies]
 python = "^3.10"
