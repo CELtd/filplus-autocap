@@ -1,16 +1,12 @@
-# src/filplus_autocap/filecoin.py
-
-from filplus_autocap.transaction import Tx
 from filplus_autocap.wallet import Wallet
+from filplus_autocap.transaction import Tx
+from filplus_autocap.constants import DATACAP_MAX_ISSUANCE
 
-class Filecoin:
-    def __init__(self, address: str, gas_price: float = 1):
-        self.address = address
-        self._gas_price = gas_price
-
-    def get_current_gas_price(self) -> float:
-        return self._gas_price
-
+class Filecoin(Wallet):
+    def __init__(self, address: str):
+        super().__init__(address=address, owner="filecoin")
+        self.datacap_balance = DATACAP_MAX_ISSUANCE
+    
     def issue_datacap(self, recipient_wallet: Wallet, amount: float, signers: list[str] = None) -> Tx:
         """
         Issues datacap to a given wallet.
@@ -31,8 +27,8 @@ class Filecoin:
             recipient=recipient_wallet.address,
             datacap_amount=amount,
             fil_amount=0.0,
-            signers=signers
+            signers=signers,
+            message=f"Mint {amount} DC to {recipient_wallet.address}"
         )
 
-        recipient_wallet.datacap_balance += amount
         return tx
