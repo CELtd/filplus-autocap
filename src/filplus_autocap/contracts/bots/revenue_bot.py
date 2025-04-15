@@ -1,7 +1,7 @@
-from filplus_autocap.bot import Bot
-from filplus_autocap.transaction import Tx
-from filplus_autocap.verified_sp_list import VerifiedSPList
-from filplus_autocap.constants import GAS_PRICE
+from filplus_autocap.contracts.bots.bot import Bot
+from filplus_autocap.blockchain_utils.transaction import Tx
+from filplus_autocap.contracts.verified_sp_list import VerifiedSPList
+from filplus_autocap.utils.constants import GAS_PRICE
 
 
 class RevenueBot(Bot):

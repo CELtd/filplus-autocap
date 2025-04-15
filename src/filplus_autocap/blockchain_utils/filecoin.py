@@ -1,6 +1,6 @@
-from filplus_autocap.wallet import Wallet
-from filplus_autocap.transaction import Tx
-from filplus_autocap.constants import DATACAP_MAX_ISSUANCE
+from filplus_autocap.blockchain_utils.wallet import Wallet
+from filplus_autocap.blockchain_utils.transaction import Tx
+from filplus_autocap.utils.constants import DATACAP_MAX_ISSUANCE
 
 class Filecoin(Wallet):
     def __init__(self, address: str):

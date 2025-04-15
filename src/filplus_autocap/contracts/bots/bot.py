@@ -1,5 +1,5 @@
-from filplus_autocap.transaction import Tx
-from filplus_autocap.wallet import Wallet
+from filplus_autocap.blockchain_utils.transaction import Tx
+from filplus_autocap.blockchain_utils.wallet import Wallet
 
 class Bot(Wallet):
     def __init__(self, address: str, owner: str = "bot"):

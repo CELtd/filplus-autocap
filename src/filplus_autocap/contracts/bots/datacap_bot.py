@@ -1,6 +1,6 @@
-from filplus_autocap.wallet import Wallet
-from filplus_autocap.transaction import Tx
-from filplus_autocap.bot import Bot
+from filplus_autocap.blockchain_utils.wallet import Wallet
+from filplus_autocap.blockchain_utils.transaction import Tx
+from filplus_autocap.contracts.bots.bot import Bot
 
 
 class DatacapBot(Bot):

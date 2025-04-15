@@ -1,6 +1,6 @@
-from filplus_autocap.transaction import Tx
-from filplus_autocap.revenue_bot import RevenueBot
-from filplus_autocap.datacap_bot import DatacapBot
+from filplus_autocap.blockchain_utils.transaction import Tx
+from filplus_autocap.contracts.bots.revenue_bot import RevenueBot
+from filplus_autocap.contracts.bots.datacap_bot import DatacapBot
 
 class MasterBot:
     def __init__(

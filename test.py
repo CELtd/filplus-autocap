@@ -1,49 +1,28 @@
-from filplus_autocap.filecoin import Filecoin
-from filplus_autocap.wallet import Wallet
-from filplus_autocap.revenue_bot import RevenueBot
-from filplus_autocap.datacap_bot import DatacapBot
-from filplus_autocap.verified_sp_list import VerifiedSPList
-from filplus_autocap.transaction import Tx, TxProcessor
-from filplus_autocap.constants import GAS_PRICE, FILECOIN_ADDRESS
-from filplus_autocap.master_bot import MasterBot
+from filplus_autocap.blockchain_utils.transaction import Tx
+from filplus_autocap.utils.setup import initialize
+from filplus_autocap.utils.constants import GAS_PRICE
+
+from filplus_autocap.blockchain_utils.wallet import Wallet
+from filplus_autocap.blockchain_utils.storage_provider import initialize_sp
+
 
 # --- Setup ---
-datacap_wallet = Wallet(address="f1_datacap_wallet", owner="datacap-bot", datacap_balance=10_000)
-sp_wallet = Wallet(address="f1sp001", owner="sp001", fil_balance=100.0 + 2 * GAS_PRICE)
-protocol_wallet = Wallet(address="f1protocolwallet", owner="protocol")
-revenue_bot = RevenueBot(address="f1revenuebot", protocol_wallet_address="f1protocolwallet", verified_sp_list=None)
-revenue_bot_wallet = revenue_bot
-filecoin = Filecoin(FILECOIN_ADDRESS)
-burn_wallet = Wallet(address="f099", owner="burn", fil_balance=0.0)
+env = initialize()
 
+wallets = env.wallets
+processor = env.processor
+revenue_bot = env.revenue_bot
+master_bot = env.master_bot
+verified_list = env.verified_list
 
-verified_list = VerifiedSPList()
-revenue_bot.verified_sp_list = verified_list
-
-wallets = {
-    "f_filecoin": filecoin,
-    "f1_datacap_wallet": datacap_wallet,
-    "f1sp001": sp_wallet,
-    "f1protocolwallet": protocol_wallet,
-    "f1revenuebot": revenue_bot_wallet,
-    "f1datacapbot": datacap_wallet,
-    "f_verifiedsp_list": verified_list,
-    "f1masterbot": Wallet(address="f1masterbot", owner="master-bot"),  # dummy for TxProcessor
-    "f099": burn_wallet,  # 🔥 Burn wallet
-
-}
-
-datacap_bot = DatacapBot(address="f1datacapbot", datacap_wallet=datacap_wallet)
-master_bot = MasterBot(
-    address="f1masterbot",
-    revenue_bot=revenue_bot,
-    datacap_bot=datacap_bot,
-    master_fee_ratio=0.1,
-    datacap_distribution_total=1000.0
+# Create and register a new SP
+sp_wallet = initialize_sp(
+    address="f1sp001",
+    owner="sp001",
+    fil_balance=150.0,
+    wallets=wallets,
+    processor=processor
 )
-
-processor = TxProcessor(wallets)
-
 # --- Step 1: Registration ---
 registration_tx = Tx(
     sender="f1sp001",

@@ -1,10 +1,10 @@
 from typing import List, Optional
-from filplus_autocap.wallet import Wallet
-from filplus_autocap.constants import GAS_PRICE, FILECOIN_ADDRESS
+from filplus_autocap.blockchain_utils.wallet import Wallet
+from filplus_autocap.utils.constants import GAS_PRICE, FILECOIN_ADDRESS
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from filplus_autocap.verified_sp_list import VerifiedSPList
+    from filplus_autocap.contracts.verified_sp_list import VerifiedSPList
 
 class Tx:
     def __init__(
