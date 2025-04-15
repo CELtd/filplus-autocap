@@ -11,7 +11,7 @@ class RevenueBot(Bot):
         protocol_wallet_address: str,
         verified_sp_list: VerifiedSPList,
     ):
-        super().__init__(address)
+        super().__init__(address=address, owner=["revenue_bot", "master_bot"])
         self.protocol_wallet_address = protocol_wallet_address
         self.verified_sp_list = verified_sp_list
         self.current_auction = {}  # Tracks FIL contributions per verified SP
@@ -45,4 +45,10 @@ class RevenueBot(Bot):
         return drained
 
     def __repr__(self):
-        return f"<RevenueBot at {self.address} with {len(self.current_auction)} active contributors and a total of {self.fil_balance} FIL>"
+        wallet_info = super().__repr__()
+        #bot_info = (
+        #    f"<RevenueBot at {self.address} with "
+        #    f"{len(self.current_auction)} active contributors "
+        #    f"and a total of {self.fil_balance:.2f} FIL>"
+        #)
+        return f"{wallet_info}" 

@@ -21,34 +21,34 @@ class SetupEnv:
 
 def initialize() -> SetupEnv:
     # Wallets and bot setup
-    datacap_wallet = Wallet(address="f1_datacap_wallet", owner="datacap-bot", datacap_balance=10_000)
-    protocol_wallet = Wallet(address="f1protocolwallet", owner="protocol")
-    burn_wallet = Wallet(address="f099", owner="burn", fil_balance=0.0)
+    datacap_wallet = Wallet(address="f1_datacap_wallet", owner=["datacap_bot", "master_bot"], datacap_balance=10_000)
+    protocol_wallet = Wallet(address="f1_protocol_wallet", owner="protocol")
+    burn_wallet = Wallet(address="f099", owner="filecoin", fil_balance=0.0)
     filecoin = Filecoin(FILECOIN_ADDRESS)
 
     verified_list = VerifiedSPList()
-    revenue_bot = RevenueBot(address="f1revenuebot", protocol_wallet_address=protocol_wallet.address, verified_sp_list=verified_list)
-    datacap_bot = DatacapBot(address="f1datacapbot", datacap_wallet=datacap_wallet)
+    revenue_bot = RevenueBot(address="f1_revenue_bot", protocol_wallet_address=protocol_wallet.address, verified_sp_list=verified_list)
+    datacap_bot = DatacapBot(address="f1_datacap_bot", datacap_wallet=datacap_wallet)
     master_bot = MasterBot(
-        address="f1masterbot",
+        address="f1_master_bot",
         revenue_bot=revenue_bot,
         datacap_bot=datacap_bot,
         master_fee_ratio=0.1,
-        datacap_distribution_total=1000.0
+        datacap_distribution_round=1000.0,
     )
 
     wallets = {
         "f_filecoin": filecoin,
         "f1_datacap_wallet": datacap_wallet,
-        "f1protocolwallet": protocol_wallet,
-        "f1revenuebot": revenue_bot,
-        "f1datacapbot": datacap_wallet,
+        "f1_protocol_wallet": protocol_wallet,
+        "f1_revenue_bot": revenue_bot,
         "f_verifiedsp_list": verified_list,
-        "f1masterbot": Wallet(address="f1masterbot", owner="master-bot"),  # dummy for TxProcessor
+        "f1_master_bot": Wallet(address="f1_master_bot", owner="master_bot"),  # dummy for TxProcessor
         "f099": burn_wallet,
     }
 
     processor = TxProcessor(wallets)
+    master_bot.processor = processor
 
     return SetupEnv(
         wallets=wallets,

@@ -16,7 +16,7 @@ master_bot = env.master_bot
 verified_list = env.verified_list
 
 # Create and register a new SP
-sp_wallet = initialize_sp(
+sp_1 = initialize_sp(
     address="f1sp001",
     owner="sp001",
     fil_balance=150.0,
@@ -25,11 +25,11 @@ sp_wallet = initialize_sp(
 )
 # --- Step 1: Registration ---
 registration_tx = Tx(
-    sender="f1sp001",
+    sender=sp_1.address,
     recipient=verified_list.address,
     fil_amount=0.0,
     datacap_amount=0.0,
-    signers=["f1sp001"],
+    signers=[sp_1.address],
     message="Registering"
 )
 print("Registration:", registration_tx)
@@ -37,10 +37,10 @@ processor.send([registration_tx])
 
 # --- Step 2: SP sends revenue to RevenueBot ---
 incoming = Tx(
-    sender="f1sp001",
-    recipient="f1revenuebot",
+    sender=sp_1.address,
+    recipient=revenue_bot.address,
     fil_amount=100.0,
-    signers=["f1sp001"]
+    signers=[sp_1.address]
 )
 print("\nIncoming FIL:", incoming)
 processor.send([incoming])
@@ -53,7 +53,7 @@ for tx in resulting_txs:
 # --- Step 3: Auction End — MasterBot drains auction and executes logic ---
 reward_txs = master_bot.execute_auction_round()
 for tx in reward_txs:
-    print(revenue_bot.fil_balance)
+    print(" ")
     print("MasterBot Tx:", tx)
     processor.send([tx])
 
