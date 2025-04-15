@@ -46,8 +46,8 @@ class TxProcessor:
                 if sender_wallet is None or recipient_wallet is None:
                     raise ValueError(f"Missing wallet for sender or recipient in tx: {tx}")
 
-                if sender_wallet.fil_balance < tx.fil_amount + GAS_PRICE and tx.sender != FILECOIN_ADDRESS:
-                    raise ValueError(f"Insufficient FIL in sender wallet: {tx.sender}")
+                if sender_wallet.fil_balance < tx.fil_amount and tx.sender != FILECOIN_ADDRESS:
+                    raise ValueError(f"Insufficient FIL {sender_wallet.fil_balance} in sender wallet: {tx.sender}")
 
                 if sender_wallet.datacap_balance < tx.datacap_amount:
                     raise ValueError(f"Insufficient Datacap in sender wallet: {tx.sender}")
@@ -56,7 +56,7 @@ class TxProcessor:
                 if tx.sender == FILECOIN_ADDRESS:
                     sender_wallet.fil_balance -= (tx.fil_amount)
                 else:
-                    sender_wallet.fil_balance -= (tx.fil_amount + GAS_PRICE)
+                    sender_wallet.fil_balance -= (tx.fil_amount)
                 recipient_wallet.fil_balance += tx.fil_amount
 
                 # Process Datacap transfer

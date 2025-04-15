@@ -12,6 +12,7 @@ packages = [
 python = "^3.10"
 numpy = "^2.2.4"
 pandas = "^2.2.3"
+aioconsole = "^0.8.1"
 
 
 [tool.poetry.group.dev.dependencies]

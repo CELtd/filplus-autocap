@@ -63,7 +63,6 @@ async def test_async_auction_with_delayed_sp():
     # --- Wait for auction loop to complete ---
     await auction_task
 
-    # Final State - Print wallet balances and auction state
 
 
 if __name__ == "__main__":
