@@ -13,7 +13,6 @@ The current FIL+ system requires human oversight and often favors retrievable, o
 **FIL+ Autocap** aims to:
 
 - **Eliminate human subjectivity** from the datacap allocation process  
-- **Encourage real demand** by rewarding SPs with paying clients  
 - **Enable permissionless participation** via an economic incentive model
 
 ---
