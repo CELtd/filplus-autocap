@@ -9,9 +9,8 @@ from filplus_autocap.contracts.bots.revenue_bot import RevenueBot
 from filplus_autocap.contracts.bots.master_bot import MasterBot
 from filplus_autocap.contracts.bots.datacap_bot import DatacapBot
 from filplus_autocap.contracts.verified_sp_list import VerifiedSPList
-from filplus_autocap.utils.constants import GAS_PRICE, FILECOIN_ADDRESS
+from filplus_autocap.utils.constants import GAS_PRICE, FILECOIN_ADDRESS, VERIFIED_SP_FILE
 from filplus_autocap.blockchain_utils.currencies import DAT, FIL
-
 
 @dataclass
 class SetupEnv:
@@ -22,16 +21,13 @@ class SetupEnv:
     datacap_bot: DatacapBot
     verified_list: VerifiedSPList
 
-
 def load_config(path: str = "config/setup.json") -> dict:
     with open(Path(path), "r") as f:
         return json.load(f)
 
-
 def initialize(config_path: str = "config/setup.json") -> SetupEnv:
     config = load_config(config_path)
 
-    # Wallets and bot setup
     datacap_wallet = Wallet(
         address="f1_datacap_wallet",
         owner=["datacap_bot", "master_bot"],
@@ -41,7 +37,9 @@ def initialize(config_path: str = "config/setup.json") -> SetupEnv:
     burn_wallet = Wallet(address="f099", owner="filecoin", fil_balance=FIL(0.0))
     filecoin = Filecoin(FILECOIN_ADDRESS)
 
+    # Initialize VerifiedSPList and load verified addresses
     verified_list = VerifiedSPList()
+
     revenue_bot = RevenueBot(
         address="f1_revenue_bot",
         protocol_wallet_address=protocol_wallet.address,
@@ -60,6 +58,7 @@ def initialize(config_path: str = "config/setup.json") -> SetupEnv:
         auction_duration=config["auction_duration"]
     )
 
+    # Create the wallets dictionary
     wallets = {
         "f_filecoin": filecoin,
         "f1_datacap_wallet": datacap_wallet,
@@ -70,7 +69,9 @@ def initialize(config_path: str = "config/setup.json") -> SetupEnv:
         "f099": burn_wallet,
     }
 
+    # Initialize transaction processor
     processor = TxProcessor(wallets)
+    verified_list.load(processor)  # Load addresses and initialize corresponding wallets
     master_bot.processor = processor
 
     return SetupEnv(

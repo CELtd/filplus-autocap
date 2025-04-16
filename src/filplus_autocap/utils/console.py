@@ -29,7 +29,7 @@ async def listen_for_commands(env, logger, processor, verified_list, revenue_bot
                 fil_amount=FIL(0.0),
                 datacap_amount=DAT(0.0),
                 signers=[sp.address],
-                message="Registering SP"
+                message=f"Registering SP with wallet {sp}"
             )
             logger.info(f"       └─ 🛰️ EVENT DETECTED: SP registration TX: {registration_tx}")
             processor.send([registration_tx])

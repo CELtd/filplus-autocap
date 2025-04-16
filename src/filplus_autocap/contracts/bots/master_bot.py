@@ -7,8 +7,6 @@ from filplus_autocap.contracts.bots.datacap_bot import DatacapBot
 from filplus_autocap.utils.logger import get_logger
 from filplus_autocap.blockchain_utils.currencies import FIL, DAT
 
-
-
 class MasterBot:
     def __init__(
         self,
@@ -106,7 +104,7 @@ class MasterBot:
         return
 
     async def run_auction(self, time_vector: list[float]):
-        self.logger.info(self.header + f" ⏳ Starting auction simulation. Duration: {self.auction_duration}")
+        self.logger.info(self.header + f" ⏳ Starting auction simulation. Auction duration: {self.auction_duration} epochs")
         self.print_initial_state()
         round_number = 0
 

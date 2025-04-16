@@ -12,7 +12,7 @@ def get_logger(name="MasterBotLogger"):
         logger.removeHandler(handler)
 
     # Remove the log file if it exists, to clear the file each time
-    log_file = "masterbot.log"
+    log_file = "data/masterbot.log"
     if os.path.exists(log_file):
         os.remove(log_file)
 
