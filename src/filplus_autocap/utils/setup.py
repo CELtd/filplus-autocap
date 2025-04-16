@@ -14,6 +14,9 @@ from filplus_autocap.blockchain_utils.currencies import DAT, FIL
 
 @dataclass
 class SetupEnv:
+    """
+    Environment setup for the system, encapsulating all necessary components.
+    """
     wallets: dict[str, Wallet]
     processor: TxProcessor
     revenue_bot: RevenueBot
@@ -22,12 +25,32 @@ class SetupEnv:
     verified_list: VerifiedSPList
 
 def load_config(path: str = "config/setup.json") -> dict:
+    """
+    Loads the configuration from a JSON file.
+
+    Args:
+        path (str): Path to the configuration file. Default is 'config/setup.json'.
+    
+    Returns:
+        dict: Parsed JSON configuration.
+    """
     with open(Path(path), "r") as f:
         return json.load(f)
 
 def initialize(config_path: str = "config/setup.json") -> SetupEnv:
+    """
+    Initializes the system environment using the provided configuration.
+
+    Args:
+        config_path (str): Path to the configuration file. Default is 'config/setup.json'.
+    
+    Returns:
+        SetupEnv: The initialized environment with all components.
+    """
+    # Load the configuration from the JSON file
     config = load_config(config_path)
 
+    # Initialize wallets with predefined values
     datacap_wallet = Wallet(
         address="f1_datacap_wallet",
         owner=["datacap_bot", "master_bot"],
@@ -37,18 +60,23 @@ def initialize(config_path: str = "config/setup.json") -> SetupEnv:
     burn_wallet = Wallet(address="f099", owner="filecoin", fil_balance=FIL(0.0))
     filecoin = Filecoin(FILECOIN_ADDRESS)
 
-    # Initialize VerifiedSPList and load verified addresses
+    # Initialize the VerifiedSPList (Storage Providers)
     verified_list = VerifiedSPList()
 
+    # Initialize the RevenueBot
     revenue_bot = RevenueBot(
         address="f1_revenue_bot",
         protocol_wallet_address=protocol_wallet.address,
         verified_sp_list=verified_list
     )
+
+    # Initialize the DatacapBot
     datacap_bot = DatacapBot(
         address="f1_datacap_bot",
         datacap_wallet=datacap_wallet
     )
+
+    # Initialize the MasterBot with the necessary configuration parameters
     master_bot = MasterBot(
         address="f1_master_bot",
         revenue_bot=revenue_bot,
@@ -58,7 +86,7 @@ def initialize(config_path: str = "config/setup.json") -> SetupEnv:
         auction_duration=config["auction_duration"]
     )
 
-    # Create the wallets dictionary
+    # Create a dictionary of all the wallets
     wallets = {
         "f_filecoin": filecoin,
         "f1_datacap_wallet": datacap_wallet,
@@ -69,11 +97,16 @@ def initialize(config_path: str = "config/setup.json") -> SetupEnv:
         "f099": burn_wallet,
     }
 
-    # Initialize transaction processor
+    # Initialize the transaction processor with the wallets
     processor = TxProcessor(wallets)
-    verified_list.load(processor)  # Load addresses and initialize corresponding wallets
+
+    # Load and initialize the verified SP addresses into the verified list
+    verified_list.load(processor)
+
+    # Assign the processor to the master bot
     master_bot.processor = processor
 
+    # Return the complete environment setup
     return SetupEnv(
         wallets=wallets,
         processor=processor,
