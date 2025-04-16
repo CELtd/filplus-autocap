@@ -53,8 +53,8 @@ def initialize(config_path: str = "config/setup.json") -> SetupEnv:
         address="f1_master_bot",
         revenue_bot=revenue_bot,
         datacap_bot=datacap_bot,
-        master_fee_ratio=FIL(config["master_fee_ratio"]),
-        datacap_distribution_round=DAT(config["datacap_distribution_round"]),
+        master_fee_ratio=FIL(config["auction_fee"]),
+        datacap_distribution_round=DAT(config["datacap_per_round"]),
         auction_duration=config["auction_duration"]
     )
 

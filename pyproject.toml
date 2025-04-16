@@ -21,3 +21,6 @@ pytest = "^8.3.5"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+test-auction = "test_interactive_auction:entry_point"

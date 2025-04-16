@@ -1,5 +1,5 @@
 {
-  "master_fee_ratio": 0.1,
-  "datacap_distribution_round": 1000.0,
+  "datacap_per_round": 1000.0,
+  "auction_fee": 0.1,
   "auction_duration": 10
 }

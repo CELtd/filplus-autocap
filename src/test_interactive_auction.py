@@ -4,6 +4,8 @@ from filplus_autocap.utils.constants import GAS_PRICE
 from filplus_autocap.utils.console import listen_for_commands
 
 async def main():
+    print("Starting the main auction...")
+    
     # --- Initialize environment ---
     env = initialize()
     wallets = env.wallets
@@ -24,5 +26,9 @@ async def main():
         auction_task
     )
 
-if __name__ == "__main__":
+def entry_point():
+    import asyncio
     asyncio.run(main())
+    
+if __name__ == "__main__":
+    entry_point()
