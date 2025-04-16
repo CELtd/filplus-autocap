@@ -1,9 +1,11 @@
 import asyncio
+import sys
 
 from filplus_autocap.blockchain_utils.transaction import Tx, TxProcessor
 from filplus_autocap.contracts.bots.revenue_bot import RevenueBot
 from filplus_autocap.contracts.bots.datacap_bot import DatacapBot
 from filplus_autocap.utils.logger import get_logger
+from filplus_autocap.blockchain_utils.currencies import FIL, DAT
 
 
 logger = get_logger("MasterBotLogger")
@@ -14,9 +16,9 @@ class MasterBot:
         address: str,
         revenue_bot: RevenueBot,
         datacap_bot: DatacapBot,
-        master_fee_ratio: float = 0.1,
-        protocol_fee_ratio: float = 0.1,
-        datacap_distribution_round: float = 1000.0,
+        master_fee_ratio: FIL = FIL(0.1),
+        protocol_fee_ratio: FIL = FIL(0.1),
+        datacap_distribution_round: DAT = DAT(1000.0),
         auction_duration: float = 10.0,
         protocol_wallet_address: str = "f1_protocol_wallet",
         burn_address: str = "f099",
@@ -25,9 +27,9 @@ class MasterBot:
         self.address = address
         self.revenue_bot = revenue_bot
         self.datacap_bot = datacap_bot
-        self.master_fee_ratio = master_fee_ratio
-        self.protocol_fee_ratio = protocol_fee_ratio
-        self.datacap_distribution_round = datacap_distribution_round
+        self.master_fee_ratio = FIL(master_fee_ratio)
+        self.protocol_fee_ratio = FIL(protocol_fee_ratio)
+        self.datacap_distribution_round = DAT(datacap_distribution_round)
         self.auction_duration = auction_duration
         self.protocol_wallet_address = protocol_wallet_address
         self.burn_address = burn_address
@@ -39,21 +41,22 @@ class MasterBot:
         total_fil = sum(auction_data.values())
         reward_txs = []
 
-        if total_fil == 0:
-            return []
+        if total_fil == FIL(0):
+            return 
 
+        refund = FIL(0)
         for sp_address, contribution in auction_data.items():
             c_i = contribution / total_fil
             refund_amount = (1 - self.master_fee_ratio) * contribution
             datacap_amount = c_i * self.datacap_distribution_round
-            total_fil -= refund_amount
+            refund += refund_amount
 
             reward_txs.append(
                 Tx(
                     sender=self.revenue_bot.address,
                     recipient=sp_address,
-                    fil_amount=refund_amount,
-                    datacap_amount=0.0,
+                    fil_amount=FIL(refund_amount),
+                    datacap_amount=DAT(0.0),
                     signers=[self.revenue_bot.address, self.address],
                     message="Refund after auction",
                 )
@@ -63,14 +66,14 @@ class MasterBot:
                 Tx(
                     sender=self.datacap_bot.datacap_wallet.address,
                     recipient=sp_address,
-                    datacap_amount=datacap_amount,
-                    fil_amount=0.0,
+                    datacap_amount=DAT(datacap_amount),
+                    fil_amount=FIL(0.0),
                     signers=[self.datacap_bot.address, self.address],
                     message=f"Datacap issued: {datacap_amount:.2f}",
                 )
             )
 
-        leftover_balance = total_fil
+        leftover_balance = total_fil - refund
         burn_amount = leftover_balance * (1 - self.protocol_fee_ratio)
         protocol_fee_amount = leftover_balance * self.protocol_fee_ratio
 
@@ -78,8 +81,8 @@ class MasterBot:
             Tx(
                 sender=self.revenue_bot.address,
                 recipient=self.burn_address,
-                fil_amount=burn_amount,
-                datacap_amount=0.0,
+                fil_amount=FIL(burn_amount),
+                datacap_amount=DAT(0.0),
                 signers=[self.revenue_bot.address, self.address],
                 message="Burned FIL",
             )
@@ -89,14 +92,18 @@ class MasterBot:
             Tx(
                 sender=self.revenue_bot.address,
                 recipient=self.protocol_wallet_address,
-                fil_amount=protocol_fee_amount,
-                datacap_amount=0.0,
+                fil_amount=FIL(protocol_fee_amount),
+                datacap_amount=DAT(0.0),
                 signers=[self.revenue_bot.address, self.address],
                 message="Protocol fee",
             )
         )
+        # Execute txs
+        for tx in reward_txs:
+            logger.info(f"{self.header}   Tx: {tx}")
+            self.processor.send([tx])
 
-        return reward_txs
+        return
 
     async def run_auction(self, time_vector: list[float]):
         logger.info(self.header + f" ⏳ Starting auction simulation. Duration: {self.auction_duration}")
@@ -113,10 +120,7 @@ class MasterBot:
 
                 logger.info(f"{self.header} 🚀 Executing auction round number {round_number}")
                 self.print_initial_state()
-                txs = self.execute_auction_round()
-                for tx in txs:
-                    logger.info(f"{self.header}   Tx: {tx}")
-                    self.processor.send([tx])
+                self.execute_auction_round()
                 round_number += 1
                 self.print_final_state()
 

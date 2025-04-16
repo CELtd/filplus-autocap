@@ -1,6 +1,7 @@
 from filplus_autocap.blockchain_utils.wallet import Wallet
+from filplus_autocap.blockchain_utils.currencies import DAT, FIL
 
-def initialize_sp(address: str, owner: str, fil_balance: float, datacap_balance: float = 0.0, wallets: dict = None, processor=None) -> Wallet:
+def initialize_sp(address: str, owner: str, fil_balance: FIL = FIL(0), datacap_balance: DAT = DAT(0.0), wallets: dict = None, processor=None) -> Wallet:
     """
     Initializes a Storage Provider wallet and registers it in the given wallets dict and processor.
 
@@ -18,8 +19,8 @@ def initialize_sp(address: str, owner: str, fil_balance: float, datacap_balance:
     sp_wallet = Wallet(
         address=address,
         owner=owner,
-        fil_balance=fil_balance,
-        datacap_balance=datacap_balance
+        fil_balance=FIL(fil_balance),
+        datacap_balance=DAT(datacap_balance)
     )
 
     if wallets is not None:

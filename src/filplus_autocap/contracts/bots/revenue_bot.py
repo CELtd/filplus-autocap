@@ -2,6 +2,7 @@ from filplus_autocap.contracts.bots.bot import Bot
 from filplus_autocap.blockchain_utils.transaction import Tx
 from filplus_autocap.contracts.verified_sp_list import VerifiedSPList
 from filplus_autocap.utils.constants import GAS_PRICE
+from filplus_autocap.blockchain_utils.currencies import FIL, DAT
 
 
 class RevenueBot(Bot):
@@ -27,15 +28,15 @@ class RevenueBot(Bot):
             protocol_tx = Tx(
                 sender=self.address,
                 recipient=self.protocol_wallet_address,
-                datacap_amount=0.0,
-                fil_amount=fil_amount,
+                datacap_amount=DAT(0.0),
+                fil_amount=FIL(fil_amount),
                 signers=[self.address],
                 message=f"Redirected revenue from unverified SP {sender}"
             )
             outgoing_txs.append(protocol_tx)
         else:
             # Record verified SP contribution in current auction
-            self.current_auction[sender] = self.current_auction.get(sender, 0.0) + fil_amount
+            self.current_auction[sender] = self.current_auction.get(sender, FIL(0.0)) + FIL(fil_amount)
 
         return outgoing_txs
 

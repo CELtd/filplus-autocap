@@ -1,5 +1,8 @@
 from filplus_autocap.blockchain_utils.wallet import Wallet
 from filplus_autocap.blockchain_utils.transaction import Tx
+from filplus_autocap.blockchain_utils.currencies import DAT, FIL
+
+
 
 class VerifiedSPList(Wallet):
     def __init__(self, address: str = "f_verifiedsp_list"):
@@ -13,7 +16,7 @@ class VerifiedSPList(Wallet):
         """
         Registers the sender of a zero-value tx directed to this address as a verified SP.
         """
-        if tx.recipient == self.address and tx.fil_amount == 0 and tx.datacap_amount == 0:
+        if tx.recipient == self.address and tx.fil_amount == FIL(0) and tx.datacap_amount == DAT(0):
             self.verified_addresses.add(tx.sender)
 
     def __repr__(self):

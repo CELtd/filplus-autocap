@@ -1,4 +1,5 @@
 from typing import Union, List
+from filplus_autocap.blockchain_utils.currencies import DAT, FIL
 
 
 class Wallet:
@@ -6,13 +7,13 @@ class Wallet:
         self,
         address: str,
         owner: Union[str, List[str]],
-        datacap_balance: float = 0.0,
-        fil_balance: float = 0.0
+        datacap_balance: DAT = DAT(0),
+        fil_balance: FIL = FIL(0)
     ):
         self.address = address
         self.owner = [owner] if isinstance(owner, str) else owner
-        self.datacap_balance = datacap_balance
-        self.fil_balance = fil_balance
+        self.datacap_balance = DAT(datacap_balance)
+        self.fil_balance = FIL(fil_balance)
 
     def deposit_datacap(self, amount: float):
         if amount < 0:
@@ -38,7 +39,7 @@ class Wallet:
         return (
             f"<Wallet address={self.address} "
             f"owner={self.owner} "
-            f"datacap={self.datacap_balance:.2f} "
-            f"FIL={self.fil_balance:.2f}>"
+            f"datacap={self.datacap_balance} "
+            f"FIL={self.fil_balance}>"
         )
     
