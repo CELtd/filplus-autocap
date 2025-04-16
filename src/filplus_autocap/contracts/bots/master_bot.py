@@ -8,7 +8,6 @@ from filplus_autocap.utils.logger import get_logger
 from filplus_autocap.blockchain_utils.currencies import FIL, DAT
 
 
-logger = get_logger("MasterBotLogger")
 
 class MasterBot:
     def __init__(
@@ -35,6 +34,7 @@ class MasterBot:
         self.burn_address = burn_address
         self.processor = processor
         self.header = "[🤖 MasterBot]"
+        self.logger = get_logger("MasterBotLogger")
 
     def execute_auction_round(self) -> list[Tx]:
         auction_data = self.revenue_bot.drain_auction()
@@ -100,25 +100,26 @@ class MasterBot:
         )
         # Execute txs
         for tx in reward_txs:
-            logger.info(f"{self.header}   Tx: {tx}")
+            self.logger.info(f"{self.header}   Tx: {tx}")
             self.processor.send([tx])
 
         return
 
     async def run_auction(self, time_vector: list[float]):
-        logger.info(self.header + f" ⏳ Starting auction simulation. Duration: {self.auction_duration}")
+        self.logger.info(self.header + f" ⏳ Starting auction simulation. Duration: {self.auction_duration}")
         self.print_initial_state()
         round_number = 0
 
         for t in time_vector:
-            logger.info(f"[time: {t} epochs] ⏱️ Tick...")
+            self.logger.info(f"[time: {t} epochs] ⏱️ Tick...")
 
             if t % self.auction_duration == 0 and t != 0:
                 if self.datacap_bot.get_datacap_balance() < self.datacap_distribution_round:
-                    logger.warning(f"[time: {t} epochs] ⚠️ Not enough datacap to run auction round.")
+                    self.logger.warning(f"[time: {t} epochs] ⚠️ Not enough datacap to run auction round.")
                     break
 
-                logger.info(f"{self.header} 🚀 Executing auction round number {round_number}")
+                self.log_blank_line()
+                self.logger.info(f"{self.header} 🚀 Executing auction round number {round_number}")
                 self.print_initial_state()
                 self.execute_auction_round()
                 round_number += 1
@@ -126,33 +127,45 @@ class MasterBot:
 
             await asyncio.sleep(1)
 
-        logger.info(f"{self.header} ⏳ Auction simulation completed.")
+        self.logger.info(f"{self.header} ⏳ Auction simulation completed.")
         self.print_final_state()
 
+    async def run_auction_in_background(self, time_vector):
+        """Run the auction in the background."""
+        try:
+            await self.run_auction(time_vector)
+        except asyncio.CancelledError:
+            self.logger.info("[🛑] Auction loop was cancelled.")
+            return  # Let the cancellation propagate cleanly
+
     def print_initial_state(self):
-        logger.info(self.header + " 🔛 Initial System State")
-        logger.info(self.header + " " + "=" * 80)
-        logger.info(self.header + " 📦 Wallet Balances at the start:")
+        self.logger.info(self.header + " 🔛 Initial System State")
+        self.logger.info(self.header + " " + "=" * 80)
+        self.logger.info(self.header + " 📦 Wallet Balances at the start:")
         for addr, wallet in self.processor.wallets.items():
-            logger.info(f"{self.header}     - {wallet}")
-        logger.info(self.header + " 📊 RevenueBot Auction State at the start:")
+            self.logger.info(f"{self.header}     - {wallet}")
+        self.logger.info(self.header + " 📊 RevenueBot Auction State at the start:")
         if self.revenue_bot.current_auction:
             for sp, amount in self.revenue_bot.current_auction.items():
-                logger.info(f"{self.header}     - SP {sp} → {amount:.2f} FIL")
+                self.logger.info(f"{self.header}     - SP {sp} → {amount:.2f} FIL")
         else:
-            logger.info(f"{self.header}     - ✅ No active contributors. Auction cleared.")
-        logger.info(self.header + " " + "=" * 80 + '\n')
+            self.logger.info(f"{self.header}     - ✅ No active contributors. Auction cleared.")
+        self.logger.info(self.header + " " + "=" * 80 + '\n')
 
     def print_final_state(self):
-        logger.info(self.header + " 🔚 Final System State")
-        logger.info(self.header + " " + "=" * 80)
-        logger.info(self.header + " 📦 Wallet Balances:")
+        self.logger.info(self.header + " 🔚 Final System State")
+        self.logger.info(self.header + " " + "=" * 80)
+        self.logger.info(self.header + " 📦 Wallet Balances:")
         for addr, wallet in self.processor.wallets.items():
-            logger.info(f"{self.header}     - {wallet}")
-        logger.info(self.header + " 📊 RevenueBot Auction State:")
+            self.logger.info(f"{self.header}     - {wallet}")
+        self.logger.info(self.header + " 📊 RevenueBot Auction State:")
         if self.revenue_bot.current_auction:
             for sp, amount in self.revenue_bot.current_auction.items():
-                logger.info(f"{self.header}     - SP {sp} → {amount:.2f} FIL")
+                self.logger.info(f"{self.header}     - SP {sp} → {amount:.2f} FIL")
         else:
-            logger.info(f"{self.header}     - ✅ No active contributors. Auction cleared.")
-        logger.info(self.header + " " + "=" * 80 + '\n')
+            self.logger.info(f"{self.header}     - ✅ No active contributors. Auction cleared.")
+        self.logger.info(self.header + " " + "=" * 80 + '\n')
+
+    def log_blank_line(self):
+        self.logger.handlers[0].stream.write("\n")
+        self.logger.handlers[0].flush()

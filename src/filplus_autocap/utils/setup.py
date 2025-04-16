@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 from dataclasses import dataclass
 
 from filplus_autocap.blockchain_utils.wallet import Wallet
@@ -20,22 +22,42 @@ class SetupEnv:
     datacap_bot: DatacapBot
     verified_list: VerifiedSPList
 
-def initialize() -> SetupEnv:
+
+def load_config(path: str = "config/setup.json") -> dict:
+    with open(Path(path), "r") as f:
+        return json.load(f)
+
+
+def initialize(config_path: str = "config/setup.json") -> SetupEnv:
+    config = load_config(config_path)
+
     # Wallets and bot setup
-    datacap_wallet = Wallet(address="f1_datacap_wallet", owner=["datacap_bot", "master_bot"], datacap_balance=DAT(10_000))
+    datacap_wallet = Wallet(
+        address="f1_datacap_wallet",
+        owner=["datacap_bot", "master_bot"],
+        datacap_balance=DAT(10_000)
+    )
     protocol_wallet = Wallet(address="f1_protocol_wallet", owner="protocol")
     burn_wallet = Wallet(address="f099", owner="filecoin", fil_balance=FIL(0.0))
     filecoin = Filecoin(FILECOIN_ADDRESS)
 
     verified_list = VerifiedSPList()
-    revenue_bot = RevenueBot(address="f1_revenue_bot", protocol_wallet_address=protocol_wallet.address, verified_sp_list=verified_list)
-    datacap_bot = DatacapBot(address="f1_datacap_bot", datacap_wallet=datacap_wallet)
+    revenue_bot = RevenueBot(
+        address="f1_revenue_bot",
+        protocol_wallet_address=protocol_wallet.address,
+        verified_sp_list=verified_list
+    )
+    datacap_bot = DatacapBot(
+        address="f1_datacap_bot",
+        datacap_wallet=datacap_wallet
+    )
     master_bot = MasterBot(
         address="f1_master_bot",
         revenue_bot=revenue_bot,
         datacap_bot=datacap_bot,
-        master_fee_ratio=FIL(0.1),
-        datacap_distribution_round=DAT(1000.0),
+        master_fee_ratio=FIL(config["master_fee_ratio"]),
+        datacap_distribution_round=DAT(config["datacap_distribution_round"]),
+        auction_duration=config["auction_duration"]
     )
 
     wallets = {
@@ -44,7 +66,7 @@ def initialize() -> SetupEnv:
         "f1_protocol_wallet": protocol_wallet,
         "f1_revenue_bot": revenue_bot,
         "f_verifiedsp_list": verified_list,
-        "f1_master_bot": Wallet(address="f1_master_bot", owner="master_bot"),  # dummy for TxProcessor
+        "f1_master_bot": Wallet(address="f1_master_bot", owner="master_bot"),
         "f099": burn_wallet,
     }
 

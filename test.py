@@ -106,7 +106,7 @@ for tx in resulting_txs:
 incoming = Tx(
     sender=sp_3.address,
     recipient=revenue_bot.address,
-    fil_amount=0.00001,
+    fil_amount=0.01,
     signers=[sp_3.address]
 )
 print("\nIncoming FIL:", incoming)

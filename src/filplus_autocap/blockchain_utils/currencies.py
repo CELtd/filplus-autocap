@@ -18,15 +18,15 @@ class FIL:
             self.amount = quantize_to_unit(Decimal(fil), FEMTOFIL)
 
     def __add__(self, other):
-        return FIL(quantize_to_unit(self.amount + other.amount, FEMTOFIL))
+        return FIL(quantize_to_unit(self.amount + FIL(other).amount, FEMTOFIL))
 
     def __radd__(self, other):
         if other == 0:
             return self
-        return self.__add__(other)
+        return self.__add__(FIL(other))
 
     def __sub__(self, other):
-        return FIL(quantize_to_unit(self.amount - other.amount, FEMTOFIL))
+        return FIL(quantize_to_unit(self.amount - FIL(other).amount, FEMTOFIL))
 
     def __rsub__(self, other):
         return FIL(quantize_to_unit(Decimal(other) - self.amount, FEMTOFIL))
@@ -51,19 +51,19 @@ class FIL:
         return quantize_to_unit(self.amount / Decimal(other), FEMTOFIL)
 
     def __eq__(self, other):
-        return self.amount == other.amount
+        return self.amount == FIL(other).amount
 
     def __lt__(self, other):
-        return self.amount < other.amount
+        return self.amount < FIL(other).amount
 
     def __le__(self, other):
-        return self.amount <= other.amount
+        return self.amount <= FIL(other).amount
 
     def __gt__(self, other):
-        return self.amount > other.amount
+        return self.amount > FIL(other).amount
 
     def __ge__(self, other):
-        return self.amount >= other.amount
+        return self.amount >= FIL(other).amount
 
     def to_decimal(self):
         return self.amount
@@ -89,15 +89,15 @@ class DAT:
             self.amount = quantize_to_unit(Decimal(datacap), FEMTO_DATACAP)
 
     def __add__(self, other):
-        return DAT(quantize_to_unit(self.amount + other.amount, FEMTO_DATACAP))
+        return DAT(quantize_to_unit(self.amount + DAT(other).amount, FEMTO_DATACAP))
 
     def __radd__(self, other):
         if other == 0:
             return self
-        return self.__add__(other)
+        return self.__add__(DAT(other))
 
     def __sub__(self, other):
-        return DAT(quantize_to_unit(self.amount - other.amount, FEMTO_DATACAP))
+        return DAT(quantize_to_unit(self.amount - DAT(other).amount, FEMTO_DATACAP))
 
     def __rsub__(self, other):
         return DAT(quantize_to_unit(Decimal(other) - self.amount, FEMTO_DATACAP))
@@ -122,19 +122,19 @@ class DAT:
         return quantize_to_unit(self.amount / Decimal(other), FEMTO_DATACAP)
 
     def __eq__(self, other):
-        return self.amount == other.amount
+        return self.amount == DAT(other).amount
 
     def __lt__(self, other):
-        return self.amount < other.amount
+        return self.amount < DAT(other).amount
 
     def __le__(self, other):
-        return self.amount <= other.amount
+        return self.amount <= DAT(other).amount
 
     def __gt__(self, other):
-        return self.amount > other.amount
+        return self.amount > DAT(other).amount
 
     def __ge__(self, other):
-        return self.amount >= other.amount
+        return self.amount >= DAT(other).amount
 
     def to_decimal(self):
         return self.amount
