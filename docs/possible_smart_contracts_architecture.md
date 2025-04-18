@@ -184,8 +184,6 @@ uint256 public minRequiredDatacap;   // Threshold below which no auction clearin
 
 ---
 
----
-
 ### 🤖 RevenueBot
 **Type:** Smart contract actor  
 **Purpose:** Manages SP contributions, proposes FIL refunds, co-signs transactions on `RevenueWallet`.
