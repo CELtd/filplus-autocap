@@ -188,7 +188,10 @@ Example log excerpt:
 
 ## Documentation
 
-- [`docs/scheme.md`](docs/scheme.md) — Full design specification and rationale  
+- [`docs/mathematical_analysis.md`](docs/mathematical_analysis.md) — Synthesis of a detailed mathematical analysis exploring the incentives for SP participation and the conditions under which honest reporting of deal revenue is encouraged.
+- [`docs/possible_smart_contracts_architecture.md`](docs/possible_smart_contracts_architecture.md) — Proposed architecture for implementing the system using smart contracts.
+- [`docs/python/package.md`](docs/python/package.md) — Technical documentation of the Python implementation, including package structure, core modules, and developer guide.
+
 
 ---
 
