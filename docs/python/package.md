@@ -97,7 +97,7 @@ class Wallet:
         self.datacap_balance = DAT(0.0)
 ```
 
-This class serves as the foundation for the Bot framework.
+This class serves to represent wallets.
 
 #### Storage Provider Management (`storage_provider.py`)
 
