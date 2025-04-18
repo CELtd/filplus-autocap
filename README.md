@@ -40,6 +40,38 @@ The allocator runs in discrete time rounds and distributes datacap proportionall
 - **Competition-based mechanism** — SPs compete for a fixed datacap pool  
 - **Fee burn to resist wash trading** — A fraction of revenue is burnt to add cost to fake deals  
 
+
+### Mathematical Framework
+
+#### Datacap Allocation Mechanism
+The FIL+ Autocap distributes datacap to Storage Providers (SPs) proportionally to their declared deal revenue using a competitive auction mechanism. The mathematical model that powers this allocation is designed to:
+1. Reward SPs who generate real economic value through storage deals
+2. Create incentives for honest revenue reporting
+3. Balance short-term and long-term participation benefits
+
+#### Core Allocation Formula
+For each auction round datacap is issued to the SPs:
+
+$$D_i(r_i) = d \cdot \frac{r_i}{\sum_j r_j}$$
+
+Where:
+- $D_i$ is the amount of datacap issued to the i-th SP
+- $r_i$ is the declared deal revenue by the i-th SP
+- $d$ is the total datacap issued each round
+- $\sum_j r_j$ is the total declared deal revenue from all participating SPs
+
+#### Fee Mechanism
+Each SP pays a fee proportional to their declared revenue:
+$$Fee_i = \gamma \cdot r_i$$
+
+Where $\gamma$ is the fee rate parameter. A portion of this fee is burned, while the remainder is redirected to a protocol-owned wallet designated for ecosystem sustainability, ongoing development, and governance operations.
+
+This fee structure serves as a critical economic deterrent against wash trading. Since higher declared revenues result in more datacap allocation but also incur larger fees, only SPs with genuine revenue from real user deals can sustainably participate. This creates a natural equilibrium where:
+
+- SPs with legitimate deals can afford the fee because they receive actual payment from users
+- SPs attempting to game the system through fake deals face diminishing returns as their costs increase
+- The protocol captures value that is reinvested into the ecosystem
+
 ---
 
 ## Getting Started
