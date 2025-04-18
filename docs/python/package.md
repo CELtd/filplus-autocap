@@ -20,18 +20,19 @@ The package follows a modular structure with clear separation of concerns:
 
 ```
 filplus-autocap/
-├── config/                 # Configuration files
-│   └── setup.json          # Auction parameters
-├── data/                   # Operational data
+├── config/                    # Configuration files
+│   └── setup.json             # Auction parameters
+├── data/                      # Operational data
+│   ├── masterbot.log          # Real-time logging of the results of the computation
 │   └── verified_sp_list.json  # List of verified SPs
-├── docs/                   # Documentation
-├── src/                    # Source code
-│   └── filplus_autocap/    # Main package
+├── docs/                      # Documentation
+├── src/                       # Source code
+│   └── filplus_autocap/       # Main package
 │       ├── __init__.py
 │       ├── blockchain_utils/  # Blockchain abstractions
-│       ├── contracts/      # Contract logic and bots
-│       └── utils/          # Utility functions
-└── pyproject.toml          # Package configuration
+│       ├── contracts/         # Contract logic and bots
+│       └── utils/             # Utility functions
+└── pyproject.toml             # Package configuration
 ```
 
 ### Dependencies
