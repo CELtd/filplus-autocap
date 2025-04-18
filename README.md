@@ -1,4 +1,17 @@
 # FIL+ Autocap
+> ⚠️ **Disclaimer:** This repository is a **research prototype** designed to **simulate and experiment with auction logics** for programmable datacap allocation in the Filecoin Plus (FIL+) system.  
+> It is **not intended to reflect the precise mechanics of Filecoin on-chain smart contracts**, but instead provides a simplified framework to test variations in:
+>
+> - Datacap allocation algorithms
+> - Fee schemes
+> - Burn strategies
+> - Other incentive design parameters
+>
+> The goal is to explore and evaluate how different configurations might impact SP behavior, efficiency, and system robustness under real-world-like constraints.
+> The **possible smart contract architecture** that this simulation is loosely based on can be found here:  
+> 👉 [https://hackmd.io/T3cgceZaTdipgx0g32BB0Q](https://hackmd.io/T3cgceZaTdipgx0g32BB0Q)
+
+
 
 **FIL+ Autocap** is a programmable allocator for [Filecoin Plus (FIL+)](https://docs.filecoin.io/basics/how-storage-works/filecoin-plus), designed to automatically distribute datacap to Storage Providers (SPs) based on on-chain deal revenue — without human intervention.
 
