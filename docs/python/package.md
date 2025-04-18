@@ -37,14 +37,7 @@ filplus-autocap/
 
 ### Dependencies
 
-The package uses [Poetry](https://python-poetry.org/) for dependency management. Key dependencies include:
-
-```toml
-[tool.poetry.dependencies]
-python = "^3.10"
-pydantic = "^2.0.0"
-loguru = "^0.7.0"
-```
+The package uses [Poetry](https://python-poetry.org/) for dependency management.
 
 ## Core Modules
 
