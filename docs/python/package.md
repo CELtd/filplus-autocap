@@ -85,6 +85,19 @@ class Tx:
 
 This class encapsulates all information needed to represent a transaction.
 
+```python 
+class TxProcessor:
+    """Processes and validates a list of transactions."""
+    def __init__(self, wallets: dict[str, Wallet]):
+        self.wallets = wallets
+
+    def send(self, txs: list[Tx]):
+        for tx in txs:
+            # Handles balance checks and asset transfers
+            ...
+```
+This class executes transactions by updating wallet balances and optionally delegating to smart contracts like `VerifiedSPList`.
+
 #### Wallet Implementation (`wallet.py`)
 
 ```python
@@ -112,6 +125,35 @@ class StorageProvider:
 ```
 
 This class encapsulates information about Storage Providers.
+
+#### Filecoin Wallet (`filecoin.py`)
+
+```python
+class Filecoin(Wallet):
+    """Extends Wallet to enable datacap issuance."""
+    def __init__(self, address: str):
+        super().__init__(address=address, owner="filecoin")
+        self.datacap_balance = DAT(DATACAP_MAX_ISSUANCE)
+
+    def issue_datacap(
+        self,
+        recipient_wallet: Wallet,
+        amount: DAT = DAT(0),
+        signers: list[str] = None
+    ) -> Tx:
+        return Tx(
+            sender=self.address,
+            recipient=recipient_wallet.address,
+            datacap_amount=amount,
+            fil_amount=FIL(0),
+            signers=signers or [self.address],
+            message=f"Mint {amount} DC to {recipient_wallet.address}"
+        )
+```
+
+This class represents the Filecoin protocol’s wallet, capable of minting and issuing Datacap to other wallets via signed transactions.
+
+---
 
 ### Contract System (`contracts/`)
 
@@ -162,44 +204,56 @@ This class extends the Wallet class with transaction signing capabilities.
 #### MasterBot (`master_bot.py`)
 
 ```python
-class MasterBot(Bot):
-    """Orchestrates the auction process."""
+class MasterBot:
+    """Coordinates auction rounds, distributes FIL and Datacap, and processes protocol/burn fees."""
+
     def __init__(
-        self,
-        processor,
-        datacap_bot,
-        revenue_bot,
-        burn_address: str,
-        protocol_wallet_address: str,
-        auction_duration: int,
-        datacap_distribution_round: float,
-        burn_ratio: float = 0.5,
-        protocol_fee_ratio: float = 0.5,
-    ):
-        # Initialization code...
-    
-    def execute_auction_round(self):
-        """Executes a single auction round."""
-        auction_state = self.revenue_bot.drain_auction()
-        datacap_allocations = self.calculate_datacap_allocations(auction_state)
-        self.distribute_datacap(datacap_allocations)
-        self.distribute_rewards(auction_state)
-    
-    def calculate_datacap_allocations(self, auction_state: dict[str, float]) -> dict[str, float]:
-        """Calculates datacap allocations based on the auction state."""
-        total_revenue = sum(auction_state.values())
-        if total_revenue == 0:
-            return {}
-        
-        allocations = {}
-        for sp, revenue in auction_state.items():
-            allocation = self.datacap_distribution_round * (revenue / total_revenue)
-            allocations[sp] = allocation
-        
-        return allocations
+        address: str,
+        revenue_bot: RevenueBot,
+        datacap_bot: DatacapBot,
+        master_fee_ratio: FIL = FIL(0.1),
+        protocol_fee_ratio: FIL = FIL(0.1),
+        datacap_distribution_round: DAT = DAT(1000.0),
+        auction_duration: float = 10.0,
+        protocol_wallet_address: str = "f1_protocol_wallet",
+        burn_address: str = "f099",
+        processor: TxProcessor = None
+    )
+
+    async def run_auction(time_vector: list[float]):
+        """Runs auction rounds periodically based on a time vector and available Datacap."""
+
+    async def run_auction_in_background(time_vector):
+        """Asynchronous background wrapper for `run_auction`."""
+
+    def execute_auction_round(self) -> None:
+    """
+    Executes a single auction round by distributing FIL refunds and Datacap rewards to verified SPs
+    proportional to their contributions. After rewards are distributed, the remaining FIL is split
+    between a protocol fee and a burn fee to maintain economic sustainability.
+
+    This function performs the following steps:
+      1. Drains the FIL contributions (auction state) from the RevenueBot.
+      2. Calculates each SP's relative contribution (c_i) to determine:
+         - FIL refund amount (minus the master fee).
+         - Datacap issuance amount.
+      3. Issues two transactions per SP:
+         - One refunding FIL.
+         - One issuing Datacap.
+      4. Computes the leftover balance (i.e., total fees collected via master fee).
+      5. Splits the leftover into:
+         - Burned FIL (sent to a burn address).
+         - Protocol fee (sent to the protocol treasury).
+      6. Emits and sends all transactions.
+
+    This function encodes the incentive logic of the system: contributors are rewarded with
+    both refunds and Datacap, while a portion of FIL is retained by the protocol and burned
+    to align long-term economic and governance incentives.
+    """
+
 ```
 
-The MasterBot coordinates the entire auction process.
+This class governs the full auction lifecycle, coordinating with `RevenueBot` and `DatacapBot` to fairly allocate resources and maintain protocol economics.
 
 #### RevenueBot (`revenue_bot.py`)
 
