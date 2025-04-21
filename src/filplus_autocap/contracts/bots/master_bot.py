@@ -55,32 +55,38 @@ class MasterBot:
         self.header = "[🤖 MasterBot]"
         self.logger = get_logger("MasterBotLogger")
 
-    def execute_auction_round(self) -> list[Tx]:
+    def execute_auction_round(self) -> None:
         """
         Executes a single auction round, distributing FIL and Datacap to verified SPs,
         while handling burn and protocol fees.
-
-        Returns:
-            list[Tx]: A list of transaction objects representing the distribution of FIL and Datacap.
         """
-        # Drain the auction data (SP contributions) from the RevenueBot
         auction_data = self.revenue_bot.drain_auction()
-        total_fil = sum(auction_data.values())  # Calculate the total FIL contributed by all SPs
-        reward_txs = []  # List to store the outgoing transactions
-        
+        total_fil = sum(auction_data.values())
+    
         if total_fil == FIL(0):
-            # If no FIL was contributed, return an empty list (no transactions)
             return []
 
-        refund = FIL(0)  # Track the total refund (after master fee)
-        for sp_address, contribution in auction_data.items():
-            c_i = contribution / total_fil  # Contribution percentage for this SP
-            refund_amount = (1 - self.master_fee_ratio) * contribution  # Refund amount for this SP
-            datacap_amount = c_i * self.datacap_distribution_round  # Datacap amount for this SP
-            refund += refund_amount  # Accumulate the refund
+        reward_txs = []
+        reward_txs += self.calculate_sp_rewards(auction_data, total_fil)
+        reward_txs += self.generate_protocol_and_burn_txs(total_fil, auction_data)
+        reward_txs += self.handle_unverified_sp_redirection()
 
-            # Create a transaction to refund FIL to the SP
-            reward_txs.append(
+        self.log_and_dispatch_transactions(reward_txs)
+
+        return
+
+    def calculate_sp_rewards(self, auction_data: dict, total_fil: float) -> list:
+        """Generates refund and datacap reward transactions for each SP."""
+        txs = []
+        refund_total = FIL(0)
+    
+        for sp_address, contribution in auction_data.items():
+            c_i = contribution / total_fil
+            refund_amount = (1 - self.master_fee_ratio) * contribution
+            datacap_amount = c_i * self.datacap_distribution_round
+            refund_total += refund_amount
+    
+            txs.append(
                 Tx(
                     sender=self.revenue_bot.address,
                     recipient=sp_address,
@@ -90,56 +96,59 @@ class MasterBot:
                     message="Refund after auction",
                 )
             )
-
-            # Create a transaction to issue Datacap to the SP
-            reward_txs.append(
+    
+            txs.append(
                 Tx(
                     sender=self.datacap_bot.datacap_wallet.address,
                     recipient=sp_address,
-                    datacap_amount=DAT(datacap_amount),
                     fil_amount=FIL(0.0),
+                    datacap_amount=DAT(datacap_amount),
                     signers=[self.datacap_bot.address, self.address],
                     message=f"Datacap issued: {datacap_amount:.2f}",
                 )
             )
-
-        # Calculate the leftover balance after refunding SPs
-        leftover_balance = total_fil - refund
-        
-        # Calculate the burn and protocol fee amounts
-        burn_amount = leftover_balance * (1 - self.protocol_fee_ratio)
-        protocol_fee_amount = leftover_balance * self.protocol_fee_ratio
-
-        # Create a transaction to burn FIL
-        reward_txs.append(
+    
+        self.refund_total = refund_total  # Store for later use
+        return txs
+    
+    
+    def generate_protocol_and_burn_txs(self, total_fil: float, auction_data: dict) -> list:
+        """Generates burn and protocol fee transactions."""
+        refund_total = getattr(self, "refund_total", FIL(0))
+        leftover = total_fil - refund_total
+        burn = leftover * (1 - self.protocol_fee_ratio)
+        fee = leftover * self.protocol_fee_ratio
+    
+        return [
             Tx(
                 sender=self.revenue_bot.address,
                 recipient=self.burn_address,
-                fil_amount=FIL(burn_amount),
+                fil_amount=FIL(burn),
                 datacap_amount=DAT(0.0),
                 signers=[self.revenue_bot.address, self.address],
                 message="Burned FIL",
-            )
-        )
-
-        # Create a transaction to send the protocol fee to the protocol wallet
-        reward_txs.append(
+            ),
             Tx(
                 sender=self.revenue_bot.address,
                 recipient=self.protocol_wallet_address,
-                fil_amount=FIL(protocol_fee_amount),
+                fil_amount=FIL(fee),
                 datacap_amount=DAT(0.0),
                 signers=[self.revenue_bot.address, self.address],
                 message="Protocol fee",
-            )
-        )
-
-        # Execute all the created transactions
-        for tx in reward_txs:
+            ),
+        ]
+    
+    
+    def handle_unverified_sp_redirection(self) -> list:
+        """Returns any redirection txs created by RevenueBot from unverified SPs."""
+        return list(self.revenue_bot.outgoing_txs)
+    
+    
+    def log_and_dispatch_transactions(self, txs: list) -> None:
+        """Logs and sends all generated transactions."""
+        for tx in txs:
             self.logger.info(f"{self.header}   Tx: {tx}")
             self.processor.send([tx])
-
-        return
 
     async def run_auction(self, time_vector: list[float]):
         """

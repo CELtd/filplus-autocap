@@ -37,6 +37,9 @@ class RevenueBot(Bot):
         # Initialize a dictionary to track FIL contributions per verified SP in the current auction
         self.current_auction = {}
 
+        # List to store outgoing transaction from non-verified SPs
+        self.outgoing_txs = []
+
     def process_incoming_tx(self, tx: Tx) -> list[Tx]:
         """
         Processes an incoming transaction. If the sender is verified, it tracks their FIL contribution.
@@ -52,7 +55,6 @@ class RevenueBot(Bot):
         # Extract the sender and FIL amount from the incoming transaction
         sender = tx.sender
         fil_amount = tx.fil_amount
-        outgoing_txs = []  # List to store outgoing transactions
         
         # Check if the sender is a verified SP
         is_verified = self.verified_sp_list.is_verified(sender)
@@ -67,13 +69,14 @@ class RevenueBot(Bot):
                 signers=[self.address],  # The RevenueBot signs the transaction
                 message=f"Redirected revenue from unverified SP {sender}"  # Add a message for tracking
             )
-            outgoing_txs.append(protocol_tx)  # Add the protocol transaction to the outgoing list
+            self.outgoing_txs.append(protocol_tx)  # Add the protocol transaction to the outgoing list
         else:
             # If the sender is verified, track their FIL contribution in the current auction
             self.current_auction[sender] = self.current_auction.get(sender, FIL(0.0)) + FIL(fil_amount)
+            self.outgoing_txs.append(tx)
 
         # Return the list of outgoing transactions (could be empty or contain the protocol redirection)
-        return outgoing_txs
+        return self.outgoing_txs
 
     def drain_auction(self) -> dict[str, float]:
         """

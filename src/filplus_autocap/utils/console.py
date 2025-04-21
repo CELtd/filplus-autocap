@@ -27,9 +27,9 @@ async def listen_for_commands(env, logger, processor, verified_list, revenue_bot
 
         if command == "register":
             # Handle the SP registration command
-            sp_address = await aioconsole.ainput("Enter SP address: ")
-            sp_owner = await aioconsole.ainput("Enter SP owner: ")
-            fil_balance = FIL(await aioconsole.ainput("Enter SP FIL balance: "))
+            sp_address = (await aioconsole.ainput("Enter SP address: ")).strip()
+            sp_owner = (await aioconsole.ainput("Enter SP owner: ")).strip()
+            fil_balance = FIL((await aioconsole.ainput("Enter SP FIL balance: ")).strip())
 
             # Initialize the SP and add to the environment wallet
             sp = initialize_sp(
@@ -55,8 +55,8 @@ async def listen_for_commands(env, logger, processor, verified_list, revenue_bot
 
         elif command == "declare":
             # Handle the revenue declaration command
-            sp_address = await aioconsole.ainput("Enter SP address: ")
-            amount = FIL(await aioconsole.ainput("Enter revenue amount (FIL): "))
+            sp_address = (await aioconsole.ainput("Enter SP address: ")).strip()
+            amount = FIL((await aioconsole.ainput("Enter revenue amount (FIL): ")).strip())
 
             # Create the revenue declaration transaction
             revenue_tx = Tx(
