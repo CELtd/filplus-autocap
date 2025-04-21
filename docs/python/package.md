@@ -259,46 +259,79 @@ This class governs the full auction lifecycle, coordinating with `RevenueBot` an
 
 ```python
 class RevenueBot(Bot):
-    """Manages FIL revenue from Storage Providers."""
+    """
+    Tracks FIL contributions from verified SPs and redirects unverified contributions to the protocol wallet.
+    """
+
     def __init__(
         self,
         address: str,
         protocol_wallet_address: str,
         verified_sp_list: VerifiedSPList,
     ):
-        # Initialization code...
-        self.current_auction = {}
-    
+        super().__init__(address=address, owner=["revenue_bot", "master_bot"])
+        self.protocol_wallet_address = protocol_wallet_address
+        self.verified_sp_list = verified_sp_list
+        self.current_auction: dict[str, float] = {}
+
     def process_incoming_tx(self, tx: Tx) -> list[Tx]:
-        """Processes an incoming transaction."""
+        """
+        Records FIL from verified SPs or redirects it if unverified.
+        """
         sender = tx.sender
         fil_amount = tx.fil_amount
         outgoing_txs = []
-        
-        is_verified = self.verified_sp_list.is_verified(sender)
-        
-        if not is_verified:
-            # Redirect unverified SP revenue
-            protocol_tx = Tx(
-                sender=self.address,
-                recipient=self.protocol_wallet_address,
-                datacap_amount=DAT(0.0),
-                fil_amount=FIL(fil_amount),
-                signers=[self.address],
-                message=f"Redirected revenue from unverified SP {sender}"
+
+        if not self.verified_sp_list.is_verified(sender):
+            outgoing_txs.append(
+                Tx(
+                    sender=self.address,
+                    recipient=self.protocol_wallet_address,
+                    fil_amount=FIL(fil_amount),
+                    datacap_amount=DAT(0.0),
+                    signers=[self.address],
+                    message=f"Redirected revenue from unverified SP {sender}",
+                )
             )
-            outgoing_txs.append(protocol_tx)
         else:
-            # Track verified SP contribution
             self.current_auction[sender] = self.current_auction.get(sender, FIL(0.0)) + FIL(fil_amount)
-        
+
         return outgoing_txs
-    
+
     def drain_auction(self) -> dict[str, float]:
-        """Returns and clears the current auction state."""
+        """
+        Returns and clears current auction contributions.
+        """
         drained = self.current_auction.copy()
         self.current_auction.clear()
         return drained
+
+    def create_fil_tx(self, recipient_address: str, fil_amount: FIL, message : str = f"FIL tx"):
+        """
+        Creates a transaction for transferring FIL from the RevenueBot's associated wallet.
+        
+        Args:
+            recipient_address (str): The address to send FIL to.
+            fil_amount (FIL): The amount of FIL to send.
+        
+        Returns:
+            Tx: The generated transaction that is signed by the RevenueBot.
+        """
+        # Create a new transaction where:
+        # - The sender is the revenuebot_wallet's address
+        # - The recipient is the specified recipient address
+        # - The FIL amount is specified, and no DAT is involved in this transaction
+        tx = Tx(
+            sender=self.address,  # Sender is the datacap_wallet's address
+            recipient=recipient_address,  # Recipient is the address passed in
+            datacap_amount=DAT(0), 
+            fil_amount=FIL(fil_amount), 
+            signers=[],  # The list of signers is initially empty
+            message=message
+        )
+        
+        # Return the signed transaction
+        return self.sign_tx(tx)
 ```
 
 The RevenueBot tracks FIL contributions from verified SPs.
