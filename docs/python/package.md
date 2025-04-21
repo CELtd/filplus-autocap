@@ -393,22 +393,68 @@ The auction cycle is implemented as follows:
 4. **Auction Execution**: The system executes auction rounds at regular intervals.
 5. **Cycle Repetition**: The process repeats for subsequent rounds.
 
-The core auction logic is implemented in the `execute_auction_round` method of the MasterBot:
+The auction cycle is implemented in the `run_auction` method of the `MasterBot`
+```python
+    async def run_auction(self, time_vector: list[float]):
+        """
+        Runs the auction simulation asynchronously, executing auction rounds based on a time vector.
+
+        Args:
+            time_vector (list[float]): A list of time steps (epochs) to simulate the auction over time.
+        """
+        self.logger.info(self.header + f" ⏳ Starting auction simulation. Auction duration: {self.auction_duration} epochs")
+        self.print_initial_state()
+        round_number = 0
+
+        for t in time_vector:
+            self.logger.info(f"[time: {t} epochs] ⏱️ Tick...")
+
+            # Check if it's time for a new auction round
+            if t % self.auction_duration == 0 and t != 0:
+                if self.datacap_bot.get_datacap_balance() < self.datacap_distribution_round:
+                    self.logger.warning(f"[time: {t} epochs] ⚠️ Not enough datacap to run auction round.")
+                    break  # Stop the auction if there's not enough datacap
+
+                self.log_blank_line()
+                self.logger.info(f"{self.header} 🚀 Executing auction round number {round_number}")
+                self.print_initial_state()
+                self.execute_auction_round()  # Execute the auction round
+                round_number += 1
+                self.print_final_state()
+
+            await asyncio.sleep(1)
+
+        self.logger.info(f"{self.header} ⏳ Auction simulation completed.")
+        self.print_final_state()
+```
+
+The core auction logic is implemented in the `execute_auction_round` method of the `MasterBot`:
 
 ```python
-def execute_auction_round(self):
-    """Executes a single auction round."""
-    # Get the current auction state
-    auction_state = self.revenue_bot.drain_auction()
+    def execute_auction_round(self) -> None:
+        """
+        Executes a single auction round, distributing FIL and Datacap to verified SPs,
+        while handling burn and protocol fees.
+        """
+        # Drains auction information from RevenueBot
+        auction_data = self.revenue_bot.drain_auction()
+        total_fil = sum(auction_data.values())
     
-    # Calculate datacap allocations
-    datacap_allocations = self.calculate_datacap_allocations(auction_state)
-    
-    # Distribute datacap to SPs
-    self.distribute_datacap(datacap_allocations)
-    
-    # Distribute rewards (fee mechanism)
-    self.distribute_rewards(auction_state)
+        if total_fil == FIL(0):
+            return []
+
+        reward_txs = []
+        # Compute datacap and FIL to be issued to SPs
+        reward_txs += self.calculate_sp_rewards(auction_data, total_fil)
+        # Compute burn fee and protocol fee
+        reward_txs += self.generate_protocol_and_burn_txs(total_fil, auction_data)
+        # Fetch tx from unverified SPs (these txs will be redirected to the protocol wallet)
+        reward_txs += self.handle_unverified_sp_redirection()
+
+        # Log and send tx onchain
+        self.log_and_dispatch_transactions(reward_txs)
+
+        return
 ```
 
 ### Mathematical Model
@@ -423,66 +469,49 @@ Where:
 - $d$ is the total datacap per round
 - $\sum_j r_j$ is the total declared revenue
 
-This is implemented in the `calculate_datacap_allocations` method:
+This is implemented in the `calculate_sp_rewards` method of `MasterBot`:
 
 ```python
-def calculate_datacap_allocations(self, auction_state: dict[str, float]) -> dict[str, float]:
-    """Calculates datacap allocations based on the auction state."""
-    total_revenue = sum(auction_state.values())
+    def calculate_sp_rewards(self, auction_data: dict, total_fil: float) -> list:
+        """Generates refund and datacap reward transactions for each SP."""
+        txs = []
+        refund_total = FIL(0)
     
-    if total_revenue == 0:
-        return {}
+        for sp_address, contribution in auction_data.items():
+            c_i = contribution / total_fil
+            refund_amount = (1 - self.master_fee_ratio) * contribution
+            datacap_amount = c_i * self.datacap_distribution_round
+            refund_total += refund_amount
     
-    allocations = {}
-    for sp, revenue in auction_state.items():
-        allocation = self.datacap_distribution_round * (revenue / total_revenue)
-        allocations[sp] = allocation
+            # Instruct revenuebot to craft the tx
+            tx = self.revenue_bot.create_fil_tx(recipient_address=sp_address, fil_amount=FIL(refund_amount), message= "Refund after auction")
+            txs.append(self.sign_tx(tx))
+       
+            # Instruct databot to craft the tx
+            tx = self.datacap_bot.create_datacap_tx(recipient_address=sp_address, datacap_amount=DAT(datacap_amount), message = f"Datacap issued: {datacap_amount:.2f}")
+            txs.append(self.sign_tx(tx))
     
-    return allocations
+        self.refund_total = refund_total  # Store for later use
+        return txs
 ```
 
 ### Fee Mechanism
 
-The fee mechanism is implemented in the `distribute_rewards` method:
+The fee mechanism is implemented in the `generate_protocol_and_burn_txs` method of `MasterBot`:
 
 ```python
-def distribute_rewards(self, auction_state: dict[str, float]):
-    """Distributes rewards based on the auction state."""
-    reward_txs = []
+    def generate_protocol_and_burn_txs(self, total_fil: float, auction_data: dict) -> list:
+        """Generates burn and protocol fee transactions."""
+        refund_total = getattr(self, "refund_total", FIL(0))
+        leftover = total_fil - refund_total
+        burn = leftover * (1 - self.protocol_fee_ratio)
+        fee = leftover * self.protocol_fee_ratio
+        
+        #Instruct the Revenue bot to craft the txs
+        burn_tx = self.revenue_bot.create_fil_tx(recipient_address=self.burn_address, fil_amount=FIL(burn), message="Burned FIL")
+        protocol_tx = self.revenue_bot.create_fil_tx(recipient_address=self.protocol_wallet_address, fil_amount=FIL(fee), message="Protocol fee")
     
-    total_balance = self.revenue_bot.fil_balance
-    
-    burn_amount = total_balance * self.burn_ratio
-    leftover_balance = total_balance - burn_amount
-    protocol_fee_amount = leftover_balance * self.protocol_fee_ratio
-    
-    # Create burn transaction
-    reward_txs.append(
-        Tx(
-            sender=self.revenue_bot.address,
-            recipient=self.burn_address,
-            fil_amount=FIL(burn_amount),
-            datacap_amount=DAT(0.0),
-            signers=[self.revenue_bot.address, self.address],
-            message="Burned FIL",
-        )
-    )
-    
-    # Create protocol fee transaction
-    reward_txs.append(
-        Tx(
-            sender=self.revenue_bot.address,
-            recipient=self.protocol_wallet_address,
-            fil_amount=FIL(protocol_fee_amount),
-            datacap_amount=DAT(0.0),
-            signers=[self.revenue_bot.address, self.address],
-            message="Protocol fee",
-        )
-    )
-    
-    # Execute transactions
-    for tx in reward_txs:
-        self.processor.send([tx])
+        return [self.sign_tx(burn_tx), self.sign_tx(protocol_tx)]
 ```
 
 ## Usage Guide
@@ -506,7 +535,7 @@ The package includes a test auction system that can be run with:
 poetry run test-auction
 ```
 
-This starts the MasterBot, which triggers periodic auction rounds based on the settings in `config/setup.json`.
+This starts the `MasterBot`, which triggers periodic auction rounds based on the settings in `config/setup.json`.
 
 ### Command Interface
 
@@ -611,9 +640,3 @@ def process_command(command: str):
         return False
     return True
 ```
-
-## Conclusion
-
-The `filplus-autocap` Python package provides a flexible and extensible implementation of a programmable datacap allocation system for the Filecoin network. Its modular design, clear separation of concerns, and comprehensive documentation make it an excellent starting point for developing and testing new allocation mechanisms.
-
-For more information, refer to the README.md and other documentation in the repository.
