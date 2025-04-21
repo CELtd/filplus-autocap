@@ -4,10 +4,11 @@ import sys
 from filplus_autocap.blockchain_utils.transaction import Tx, TxProcessor
 from filplus_autocap.contracts.bots.revenue_bot import RevenueBot
 from filplus_autocap.contracts.bots.datacap_bot import DatacapBot
+from filplus_autocap.contracts.bots.bot import Bot
 from filplus_autocap.utils.logger import get_logger
 from filplus_autocap.blockchain_utils.currencies import FIL, DAT
 
-class MasterBot:
+class MasterBot(Bot):
     """
     The MasterBot orchestrates the auction rounds by coordinating with the RevenueBot and DatacapBot.
     It handles the distribution of FIL and Datacap to the Storage Providers (SPs) based on their contributions
@@ -86,27 +87,13 @@ class MasterBot:
             datacap_amount = c_i * self.datacap_distribution_round
             refund_total += refund_amount
     
-            txs.append(
-                Tx(
-                    sender=self.revenue_bot.address,
-                    recipient=sp_address,
-                    fil_amount=FIL(refund_amount),
-                    datacap_amount=DAT(0.0),
-                    signers=[self.revenue_bot.address, self.address],
-                    message="Refund after auction",
-                )
-            )
-    
-            txs.append(
-                Tx(
-                    sender=self.datacap_bot.datacap_wallet.address,
-                    recipient=sp_address,
-                    fil_amount=FIL(0.0),
-                    datacap_amount=DAT(datacap_amount),
-                    signers=[self.datacap_bot.address, self.address],
-                    message=f"Datacap issued: {datacap_amount:.2f}",
-                )
-            )
+            # Instruct revenuebot to craft the tx
+            tx = self.revenue_bot.create_fil_tx(recipient_address=sp_address, fil_amount=FIL(refund_amount), message= "Refund after auction")
+            txs.append(self.sign_tx(tx))
+       
+            # Instruct databot to craft the tx
+            tx = self.datacap_bot.create_datacap_tx(recipient_address=sp_address, datacap_amount=DAT(datacap_amount), message = f"Datacap issued: {datacap_amount:.2f}")
+            txs.append(self.sign_tx(tx))
     
         self.refund_total = refund_total  # Store for later use
         return txs
@@ -118,30 +105,21 @@ class MasterBot:
         leftover = total_fil - refund_total
         burn = leftover * (1 - self.protocol_fee_ratio)
         fee = leftover * self.protocol_fee_ratio
+        
+        #Instruct the Revenue bot to craft the txs
+        burn_tx = self.revenue_bot.create_fil_tx(recipient_address=self.burn_address, fil_amount=FIL(burn), message="Burned FIL")
+        protocol_tx = self.revenue_bot.create_fil_tx(recipient_address=self.protocol_wallet_address, fil_amount=FIL(fee), message="Protocol fee")
     
-        return [
-            Tx(
-                sender=self.revenue_bot.address,
-                recipient=self.burn_address,
-                fil_amount=FIL(burn),
-                datacap_amount=DAT(0.0),
-                signers=[self.revenue_bot.address, self.address],
-                message="Burned FIL",
-            ),
-            Tx(
-                sender=self.revenue_bot.address,
-                recipient=self.protocol_wallet_address,
-                fil_amount=FIL(fee),
-                datacap_amount=DAT(0.0),
-                signers=[self.revenue_bot.address, self.address],
-                message="Protocol fee",
-            ),
-        ]
+        return [self.sign_tx(burn_tx), self.sign_tx(protocol_tx)]
     
     
     def handle_unverified_sp_redirection(self) -> list:
         """Returns any redirection txs created by RevenueBot from unverified SPs."""
-        return list(self.revenue_bot.outgoing_txs)
+        signed_txs = []
+        for tx in list(self.revenue_bot.outgoing_txs):
+            signed_txs.append(self.sign_tx(tx))
+
+        return signed_txs
     
     
     def log_and_dispatch_transactions(self, txs: list) -> None:

@@ -34,7 +34,7 @@ class DatacapBot(Bot):
         # Return the Datacap balance of the associated datacap_wallet
         return self.datacap_wallet.datacap_balance
 
-    def create_datacap_tx(self, recipient_address: str, datacap_amount: DAT):
+    def create_datacap_tx(self, recipient_address: str, datacap_amount: DAT, message : str = "DAT issued"):
         """
         Creates a transaction for transferring Datacap from the DatacapBot's datacap_wallet.
         
@@ -55,10 +55,8 @@ class DatacapBot(Bot):
             datacap_amount=DAT(datacap_amount),  # Datacap amount to transfer
             fil_amount=FIL(0.0),  # No FIL is involved in this transaction
             signers=[],  # The list of signers is initially empty
+            message=message
         )
         
-        # Sign the transaction using the Bot's sign_tx method, appending the bot's address to the signers
-        self.sign_tx(tx)
-        
         # Return the signed transaction
-        return tx
+        return self.sign_tx(tx)

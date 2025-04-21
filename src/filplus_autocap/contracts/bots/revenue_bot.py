@@ -93,6 +93,33 @@ class RevenueBot(Bot):
         
         # Return the drained auction data
         return drained
+    
+    def create_fil_tx(self, recipient_address: str, fil_amount: FIL, message : str = f"FIL tx"):
+        """
+        Creates a transaction for transferring Datacap from the DatacapBot's datacap_wallet.
+        
+        Args:
+            recipient_address (str): The address to send FIL to.
+            fil_amount (FIL): The amount of FIL to send.
+        
+        Returns:
+            Tx: The generated transaction that is signed by the RevenueBot.
+        """
+        # Create a new transaction where:
+        # - The sender is the revenuebot_wallet's address
+        # - The recipient is the specified recipient address
+        # - The FIL amount is specified, and no DAT is involved in this transaction
+        tx = Tx(
+            sender=self.address,  # Sender is the datacap_wallet's address
+            recipient=recipient_address,  # Recipient is the address passed in
+            datacap_amount=DAT(0), 
+            fil_amount=FIL(fil_amount), 
+            signers=[],  # The list of signers is initially empty
+            message=message
+        )
+        
+        # Return the signed transaction
+        return self.sign_tx(tx)
 
     def __repr__(self):
         """
