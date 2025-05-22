@@ -42,3 +42,12 @@ htmlcov/
 # Local test data
 data/
 output/
+
+# Rust MVP
+mvp/target
+mvp/.env
+mvp/.wallet.json
+mvp/.auction.json
+mvp/.registry.json
+mvp/.private
+mvp/Cargo.lock
