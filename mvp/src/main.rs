@@ -47,8 +47,10 @@ fn main() -> Result<()> {
     
     // Test
     let provider_address = "t1v3thkeow3is5ir6zzxylifql74t77bk3xqjr76y".replacen("t1","f1", 1);
+    let provider_id = rpc::resolve_id_address(&connection, &provider_address)?;
+    println!("{}", provider_id);
     let transfer_params = craft_transfer_from_payload(
-                    &provider_address, // SP address
+                    &provider_id.to_string(), // SP address
                     "bafy2bzacec7a6itfsidhsg3jrdjumrrfmmekvuz3e2n7zwllc5c5dxts7tntw",    // piece CID
                     1024,           // 1 KiB
                     current_block, //Current block

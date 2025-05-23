@@ -10,6 +10,7 @@ use fvm_ipld_encoding::{RawBytes, to_vec};
 use base64::engine::general_purpose;
 use base64::Engine as _;
 use serde::Serialize;
+use fvm_shared::ActorID;
 
 use crate::wallet::{self, Wallet};
 use crate::allocation::TransferParams;
@@ -129,6 +130,35 @@ pub fn fetch_balance(connection: &Connection, address: &str) -> Result<String> {
     Ok(res["result"].as_str().unwrap_or("0").to_string())
 }
 
+/// Resolves a Filecoin address (like `f1...`, `t1...`, etc.) to its ID address (like `f0...`)
+/// and returns the numeric ActorID.
+pub fn resolve_id_address(connection: &Connection, address: &str) -> Result<ActorID> {
+    let payload = json!({
+        "jsonrpc": "2.0",
+        "method": "Filecoin.StateLookupID",
+        "params": [address, null],
+        "id": 1
+    });
+
+    let res = connection.client.post(&connection.rpc_url)
+        .header("Content-Type", "application/json")
+        .json(&payload)
+        .send()?
+        .json::<serde_json::Value>()?;
+
+    let id_str = res["result"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("Invalid response: {:?}", res))?;
+
+    if id_str.starts_with("f0") || id_str.starts_with("t0") {
+        let num = id_str[2..].parse::<ActorID>()?;
+        Ok(num)
+    } else {
+        anyhow::bail!("Expected ID address, got {}", id_str);
+    }
+}
+
+// To check
 pub fn fetch_datacap_balance(connection: &Connection, address: &str) -> Result<String> {
     let payload = json!({
         "jsonrpc": "2.0",
@@ -187,6 +217,8 @@ pub fn fetch_datacap_allowance(client: &Client, address: &str, rpc_url: &str) ->
 
     Ok(resp["result"].as_str().unwrap_or("0").to_string())
 }
+
+
 
 pub fn send_fil_to(connection: &Connection, from: &Wallet, to: &str, amount_atto: &str) -> Result<String> {
 

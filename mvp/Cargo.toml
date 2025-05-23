@@ -21,6 +21,7 @@ rust_decimal_macros = "1.33"
 cid = { version = "0.10", features = ["serde"] }
 multihash = "0.17"
 dotenvy = "0.15"
+multibase = "0.9"
 
 
 [patch.crates-io]

@@ -1,43 +1,42 @@
-use fvm_shared::address::Address;
-use serde::{Serialize, Deserialize};
 use std::str::FromStr;
 use anyhow::Result;
-use cid::Cid;
-use fvm_ipld_encoding::to_vec;
-use serde_tuple::{Serialize_tuple, Deserialize_tuple};
+
+use fvm_ipld_encoding::{to_vec, RawBytes};
+use fvm_ipld_encoding::tuple::*;
+use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
-use fvm_ipld_encoding::RawBytes;
-use fvm_ipld_encoding::from_slice;
+use fvm_shared::{ActorID, clock::ChainEpoch, piece::PaddedPieceSize};
+use multibase::Base;
+use multihash::Multihash;
 
-#[derive(Serialize_tuple, Deserialize_tuple)]
-pub struct Size {
-    pub size: u64,
-}
+pub type ClaimExtensionRequest = ();
 
-
-#[derive(Serialize_tuple, Deserialize_tuple)]
+#[derive(Debug, Serialize_tuple, Deserialize_tuple)]
 pub struct AllocationRequest {
-    pub provider: Address,
-    pub data: Vec<u8>, // piece CID (commP)
-    pub size: Size,
-    pub term_min: i64,
-    pub term_max: i64,
-    pub expiration: u64,
+    pub provider: ActorID,
+    pub data: Vec<u8>, // manually serialized piece CID
+    pub size: PaddedPieceSize,
+    pub term_min: ChainEpoch,
+    pub term_max: ChainEpoch,
+    pub expiration: ChainEpoch,
 }
 
-
-#[derive(Serialize_tuple, Deserialize_tuple)]
+#[derive(Debug, Serialize_tuple, Deserialize_tuple)]
 pub struct AllocationRequests {
     pub allocations: Vec<AllocationRequest>,
-    pub extensions: Vec<()>, // unused
+    pub extensions: Vec<ClaimExtensionRequest>,
 }
 
-#[derive(Debug)]
-#[derive(Serialize_tuple, Deserialize_tuple)]
+#[derive(Debug, Serialize_tuple, Deserialize_tuple)]
 pub struct TransferParams {
-    pub to: Address,           // The Verified Registry actor (f06)
-    pub amount: TokenAmount,        // Datacap amount as a string (attoFIL style)
-    pub operator_data: RawBytes // CBOR-encoded AllocationRequests
+    pub to: Address,
+    pub amount: TokenAmount,
+    pub operator_data: RawBytes,
+}
+
+fn parse_base32_cid_to_bytes(cid_str: &str) -> Result<Vec<u8>> {
+    let (_base, decoded) = multibase::decode(cid_str)?;
+    Ok(decoded)
 }
 
 pub fn craft_operator_data(
@@ -46,17 +45,20 @@ pub fn craft_operator_data(
     padded_size: u64,
     current_epoch: u64,
 ) -> Result<RawBytes> {
-    let provider_addr = Address::from_str(provider)?;
-    let piece_cid = Cid::from_str(piece_cid_str)?;
-    let piece_bytes = piece_cid.to_bytes();
+
+    let provider_id: ActorID = provider[2..].parse()?; // provider like f01234
+    //let piece_cid_bytes = parse_base32_cid_to_bytes(piece_cid_str)?;
+    let piece_cid_bytes = multibase::decode(piece_cid_str)
+    .map_err(|e| anyhow::anyhow!("Failed to decode multibase CID: {}", e))?
+    .1;
 
     let alloc = AllocationRequest {
-        provider: provider_addr,
-        data: piece_bytes,
-        size: Size{size: padded_size},
-        term_min: 180 * 2880, // 180 days
-        term_max: 540 * 2880, // 540 days
-        expiration: current_epoch + 600 * 2880,
+        provider: provider_id,
+        data: piece_cid_bytes,
+        size: PaddedPieceSize(padded_size),
+        term_min: 180 * 2880,
+        term_max: 540 * 2880,
+        expiration: current_epoch as ChainEpoch + 600 * 2880,
     };
 
     let payload = AllocationRequests {
@@ -64,36 +66,28 @@ pub fn craft_operator_data(
         extensions: vec![],
     };
 
-    let cbor = to_vec(&payload)?;               // ← this must start with 0x82
-    let raw = RawBytes::new(cbor);
-    Ok(raw)
+    Ok(RawBytes::new(to_vec(&payload)?))
 }
 
-
-
 pub fn craft_transfer_params(
-    datacap_amount: &str,         // in atto style string, e.g. "1024"
-    allocation_data: RawBytes      // result from `craft_allocation_request_from_dummy`
+    datacap_amount: &str,
+    allocation_data: RawBytes,
 ) -> Result<TransferParams> {
     Ok(TransferParams {
-        to: Address::new_id(6), // Verified registry address
+        to: Address::new_id(6), // f06
         amount: TokenAmount::from_atto(datacap_amount.parse::<u128>()?),
         operator_data: allocation_data,
     })
 }
 
 pub fn craft_transfer_from_payload(
-    provider_addr: &str,      // Provider (f0...)
-    piece_cid_str: &str,      // CID string (commP)
-    padded_size: u64,         // Piece size in bytes
-    current_epoch: u64,       // Current chain epoch
-    datacap_amount: &str      // Amount of datacap to transfer (in attoFIL string)
-//) -> Result<Vec<u8>> {
-) -> Result<TransferParams>{
-    // 1. Build operator_data from allocation request
+    provider_addr: &str,
+    piece_cid_str: &str,
+    padded_size: u64,
+    current_epoch: u64,
+    datacap_amount: &str,
+) -> Result<TransferParams> {
     let operator_data = craft_operator_data(provider_addr, piece_cid_str, padded_size, current_epoch)?;
-
-    // 2. Wrap it in transfer_from params
-    let transfer_params = craft_transfer_params(datacap_amount, operator_data)?;
-    Ok(transfer_params)
+    println!("Raw CBOR: {:02x?}", operator_data.to_vec());
+    craft_transfer_params(datacap_amount, operator_data)
 }
