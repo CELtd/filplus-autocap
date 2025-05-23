@@ -19,7 +19,7 @@ use masterbot::MasterBot;
 
 fn main() -> Result<()> {
     // Environment setup
-    dotenvy::from_filename(".env").ok(); 
+    dotenvy::from_filename(".private/.env").ok(); 
     let RPC_URL: String = env::var("RPC_URL")?;
     let WALLET_FILE: String = env::var("WALLET_FILE")?;
     let AUCTION_FILE: String  = env::var("AUCTION_FILE")?;
