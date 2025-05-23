@@ -12,13 +12,8 @@ use crate::auction::{Auction, AuctionReward};
 use crate::registry::{Registry};
 use crate::utils::{format_datacap_size, fil_to_atto_string};
 use crate::allocation::{AllocationRequest, AllocationRequests, Size, craft_allocation_request, build_transfer_from_payload};
+use crate::constants::{BOT_BURN_FEE, BOT_DATACAP_ISSUANCE_ROUND, BOT_AUCTION_INTERVAL};
 
-const BOT_BURN_FEE: f64 = 0.50;  // 50% of fee is burned
-const BOT_DATACAP_ISSUANCE_ROUND: u64 = 1024;  // Amount of DataCap issued each round 1KiB
-
-
-// TODO: The variables of the masterbot shoudl be loadable from an env file.
-// TODO: Constants should be stored in a place where we import them.
 pub struct MasterBot {
     pub wallet: Wallet,
     pub connection: Connection,
@@ -30,10 +25,11 @@ pub struct MasterBot {
 }
 
 impl MasterBot {
-    pub fn new(wallet: Wallet, connection: Connection, start_block: u64, auction_interval: u64, auction_file: &str, registry_file: &str) -> Result<Self,anyhow::Error> {
+    pub fn new(wallet: Wallet, connection: Connection, start_block: u64, auction_file: &str, registry_file: &str) -> Result<Self,anyhow::Error> {
         // Load auction and registry
         let auction = Auction::load_or_new(auction_file)?;
         let registry = Registry::load_or_new(registry_file)?;
+        let auction_interval = BOT_AUCTION_INTERVAL;
         Ok(Self {
             wallet,
             connection,
