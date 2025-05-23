@@ -12,11 +12,19 @@ reqwest = { version = "0.12.15", features = ["blocking", "json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_cbor = "0.11"
+serde_tuple = "0.5"
 fvm_shared = "=3.2.0"
 fvm_ipld_encoding = "=0.3.3"
 dotenv = "0.15.0"
 rust_decimal = "1.33"
 rust_decimal_macros = "1.33"
-cid = "0.10"
+cid = { version = "0.10", features = ["serde"] }
 multihash = "0.17"
 dotenvy = "0.15"
+
+
+[patch.crates-io]
+cid = { git = "https://github.com/multiformats/rust-cid", rev = "v0.10.1", features = ["serde"] }
+
+[build-dependencies]
+cid = { version = "0.10.1", features = ["serde"] }

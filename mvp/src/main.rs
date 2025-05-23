@@ -13,8 +13,9 @@ use dotenvy;
 use std::env;
 
 use wallet::{load_or_create_wallet};
-use rpc::{fetch_balance, fetch_datacap_balance, get_chain_head_block_number, Connection};
+use rpc::{fetch_balance, fetch_datacap_balance, get_chain_head_block_number, create_datacap_allocation, Connection};
 use utils::format_datacap_size_str;
+use allocation::craft_transfer_from_payload;
 use masterbot::MasterBot;
 
 fn main() -> Result<()> {
@@ -43,9 +44,23 @@ fn main() -> Result<()> {
 
     // Initialize and run masterbot
     let current_block: u64 = get_chain_head_block_number(&connection).unwrap_or(0);
-    let mut bot: MasterBot = MasterBot::new(wallet, connection, current_block, &AUCTION_FILE, &REGISTRY_FILE)?;
     
-    bot.run();
+    // Test
+    let provider_address = "t1v3thkeow3is5ir6zzxylifql74t77bk3xqjr76y".replacen("t1","f1", 1);
+    let transfer_params = craft_transfer_from_payload(
+                    &provider_address, // SP address
+                    "bafy2bzacec7a6itfsidhsg3jrdjumrrfmmekvuz3e2n7zwllc5c5dxts7tntw",    // piece CID
+                    1024,           // 1 KiB
+                    current_block, //Current block
+                    "1024000000000000000000"          // datacap amount (in bytes) 1 KiB
+                )?;
+    println!("{:?}", transfer_params);
+    let cid = create_datacap_allocation(transfer_params, &connection, &wallet)?;
+    println!("Tx CID: {:?}", cid);
+
+    //let mut bot: MasterBot = MasterBot::new(wallet, connection, current_block, &AUCTION_FILE, &REGISTRY_FILE)?;
+    
+    //bot.run();
 
     Ok(())
 }

@@ -12,7 +12,7 @@ use base64::Engine as _;
 use serde::Serialize;
 
 use crate::wallet::{self, Wallet};
-use crate::allocation::TransferFromParams;
+use crate::allocation::TransferParams;
 
 //Connection struct to perform JSON-RPC requests
 pub struct Connection {
@@ -293,7 +293,7 @@ pub fn send_fil_to(connection: &Connection, from: &Wallet, to: &str, amount_atto
 //    Ok(cid)
 //}
 
-pub fn create_datacap_allocation(transfer_params:TransferFromParams, connection: &Connection, wallet: &Wallet) -> Result<String> {
+pub fn create_datacap_allocation(transfer_params:TransferParams, connection: &Connection, wallet: &Wallet) -> Result<String> {
 
     
     const DATACAP_ACTOR_ID: u64 = 7;
@@ -305,16 +305,18 @@ pub fn create_datacap_allocation(transfer_params:TransferFromParams, connection:
     // Step 2: Derive key and encode your address
     let key = key_derive(&wallet.mnemonic, &wallet.derivation_path, "", &wallet.language)?;
     let addr = Address::from_str(&wallet.address.clone())?;
-    let params_bytes = RawBytes::new(to_vec(&transfer_params)?);
+    //let params_bytes = RawBytes::new(to_vec(&transfer_params)?);
+    let params_vec = to_vec(&transfer_params)?;
+    let raw_params = RawBytes::new(params_vec.clone()); // ✅ only wrap here
     let message = Message {
         version: 0,
         from: Address::from_str(&wallet.address)?,
         to: Address::new_id(7), // f07 = Datacap Actor
         sequence: nonce,
         value: TokenAmount::from_atto(0u8),
-        method_num: 3621052141, // transfer_from
-        params: params_bytes,
-        gas_limit: 20000000,
+        method_num: 80475954, // transfer
+        params: raw_params,
+        gas_limit: 20_000_0000,
         gas_fee_cap: TokenAmount::from_atto("2000000000".parse::<u128>()?),
         gas_premium: TokenAmount::from_atto("2000000000".parse::<u128>()?),
     };
@@ -334,7 +336,7 @@ pub fn create_datacap_allocation(transfer_params:TransferFromParams, connection:
             "GasFeeCap": message.gas_fee_cap.atto().to_string(),
             "GasPremium": message.gas_premium.atto().to_string(),
             "Method": message.method_num,
-            "Params": general_purpose::STANDARD.encode(message.params.to_vec()),
+            "Params": general_purpose::STANDARD.encode(params_vec),
         },
         "Signature": {
             "Type": signed.signature.signature_type() as u8,
@@ -405,56 +407,56 @@ pub fn get_datacap_balance_as_tx(connection: &Connection, of: &Wallet) -> Result
     Ok(cid)
 }
 
-pub fn send_datacap_transfer(
-    connection: &Connection,
-    from: &Wallet,
-    amount: &str, // in atto
-    operator_data: Vec<u8>, // CBOR-encoded AllocationRequests
-) -> Result<String> {
-    const VERIFIED_REGISTRY_ACTOR_ID: u64 = 6;
-    const TRANSFER_FROM_METHOD: u64 = 3621052141;
-
-    let nonce = fetch_nonce(&connection, &from.address)?;
-    let key = key_derive(&from.mnemonic, &from.derivation_path, "", &from.language)?;
-
-    let params = RawBytes::new(operator_data);
-
-    let message = Message {
-        version: 0,
-        to: Address::new_id(VERIFIED_REGISTRY_ACTOR_ID),
-        from: Address::from_str(&from.address)?,
-        sequence: nonce,
-        value: TokenAmount::from_atto(amount.parse::<u128>()?),
-        method_num: TRANSFER_FROM_METHOD,
-        params,
-        gas_limit: 5_000_000,
-        gas_fee_cap: TokenAmount::from_atto("5000000000".parse::<u128>()?),
-        gas_premium: TokenAmount::from_atto("5000000000".parse::<u128>()?),
-    };
-
-    let signed = transaction_sign(&message, &key.private_key)?;
-
-    let push_msg = json!({
-        "Message": {
-            "Version": message.version,
-            "To": message.to.to_string(),
-            "From": message.from.to_string(),
-            "Nonce": message.sequence,
-            "Value": message.value.atto().to_string(),
-            "GasLimit": message.gas_limit,
-            "GasFeeCap": message.gas_fee_cap.atto().to_string(),
-            "GasPremium": message.gas_premium.atto().to_string(),
-            "Method": message.method_num,
-            "Params": general_purpose::STANDARD.encode(message.params.to_vec()),
-        },
-        "Signature": {
-            "Type": signed.signature.signature_type() as u8,
-            "Data": general_purpose::STANDARD.encode(signed.signature.bytes()),
-        }
-    });
-
-    push_msg_to_mempool(&connection, &push_msg)
-}
+//pub fn send_datacap_transfer(
+//    connection: &Connection,
+//    from: &Wallet,
+//    amount: &str, // in atto
+//    operator_data: Vec<u8>, // CBOR-encoded AllocationRequests
+//) -> Result<String> {
+//    const VERIFIED_REGISTRY_ACTOR_ID: u64 = 6;
+//    const TRANSFER_FROM_METHOD: u64 = 3621052141;
+//
+//    let nonce = fetch_nonce(&connection, &from.address)?;
+//    let key = key_derive(&from.mnemonic, &from.derivation_path, "", &from.language)?;
+//
+//    let params = RawBytes::new(operator_data);
+//
+//    let message = Message {
+//        version: 0,
+//        to: Address::new_id(VERIFIED_REGISTRY_ACTOR_ID),
+//        from: Address::from_str(&from.address)?,
+//        sequence: nonce,
+//        value: TokenAmount::from_atto(amount.parse::<u128>()?),
+//        method_num: TRANSFER_FROM_METHOD,
+//        params,
+//        gas_limit: 20_000_000,
+//        gas_fee_cap: TokenAmount::from_atto("5000000000".parse::<u128>()?),
+//        gas_premium: TokenAmount::from_atto("5000000000".parse::<u128>()?),
+//    };
+//
+//    let signed = transaction_sign(&message, &key.private_key)?;
+//
+//    let push_msg = json!({
+//        "Message": {
+//            "Version": message.version,
+//            "To": message.to.to_string(),
+//            "From": message.from.to_string(),
+//            "Nonce": message.sequence,
+//            "Value": message.value.atto().to_string(),
+//            "GasLimit": message.gas_limit,
+//            "GasFeeCap": message.gas_fee_cap.atto().to_string(),
+//            "GasPremium": message.gas_premium.atto().to_string(),
+//            "Method": message.method_num,
+//            "Params": general_purpose::STANDARD.encode(message.params.to_vec()),
+//        },
+//        "Signature": {
+//            "Type": signed.signature.signature_type() as u8,
+//            "Data": general_purpose::STANDARD.encode(signed.signature.bytes()),
+//        }
+//    });
+//
+//    push_msg_to_mempool(&connection, &push_msg)
+//}
 
 
 

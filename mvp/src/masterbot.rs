@@ -11,7 +11,7 @@ use crate::transaction::filter_incoming_txs;
 use crate::auction::{Auction, AuctionReward};
 use crate::registry::{Registry};
 use crate::utils::{format_datacap_size, fil_to_atto_string};
-use crate::allocation::{AllocationRequest, AllocationRequests, Size, craft_allocation_request, build_transfer_from_payload};
+use crate::allocation::{AllocationRequest, AllocationRequests, craft_transfer_from_payload};
 use crate::constants::{BOT_BURN_FEE, BOT_DATACAP_ISSUANCE_ROUND, BOT_AUCTION_INTERVAL};
 
 pub struct MasterBot {
@@ -171,6 +171,14 @@ impl MasterBot {
             if let Some(sp_credit) = self.registry.credits.get(&tx.from) {
                 println!("📦 SP {} has {} bytes of credit", tx.from, sp_credit);
                 // TODO: use sp_credit to decide on allocation
+                let params_bytes = craft_transfer_from_payload(
+                    &tx.from,              // provider
+                    "baga6ea4seaqb...",    // piece CID
+                    34359738368,           // 32 GiB
+                    self.last_auction_block, //Current block
+                    "34359738368"          // datacap amount (in bytes)
+                )?;
+                println!("{:?}", params_bytes);
             } else {
                 println!("⚠️ SP {} has no credit entry", tx.from);
             }
