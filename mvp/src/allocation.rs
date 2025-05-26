@@ -1,20 +1,26 @@
 use std::str::FromStr;
 use anyhow::Result;
 
-use fvm_ipld_encoding::{to_vec, RawBytes};
+use fvm_ipld_encoding::{to_vec, RawBytes, Cbor};
 use fvm_ipld_encoding::tuple::*;
+use fvm_ipld_encoding::serde_bytes;
 use fvm_shared::address::Address;
 use fvm_shared::econ::TokenAmount;
 use fvm_shared::{ActorID, clock::ChainEpoch, piece::PaddedPieceSize};
-use multibase::Base;
-use multihash::Multihash;
+use cid::Cid;
+use multibase::decode;
+
+use crate::constants::EPOCHS_PER_DAY;
 
 pub type ClaimExtensionRequest = ();
-
+//I am working on Filecoin tooling using fvm_ipld_encoding (0.3.3), which expects Cid from the cid 0.10 crate. 
+//However, my dependency tree includes filecoin-signer and various fil_actor_* crates, which pull in cid 0.8.6. 
+//This causes a type mismatch: the Cid used in my code is not the same as the one expected by fvm_ipld_encoding, so Serialize_tuple fails. 
+//I need a way to ensure that only cid 0.10 is used throughout the dependency graph, or to patch the older dependencies to unify on the correct version.
 #[derive(Debug, Serialize_tuple, Deserialize_tuple)]
 pub struct AllocationRequest {
     pub provider: ActorID,
-    pub data: Vec<u8>, // manually serialized piece CID
+    pub data: Cid, 
     pub size: PaddedPieceSize,
     pub term_min: ChainEpoch,
     pub term_max: ChainEpoch,
@@ -34,10 +40,6 @@ pub struct TransferParams {
     pub operator_data: RawBytes,
 }
 
-fn parse_base32_cid_to_bytes(cid_str: &str) -> Result<Vec<u8>> {
-    let (_base, decoded) = multibase::decode(cid_str)?;
-    Ok(decoded)
-}
 
 pub fn craft_operator_data(
     provider: &str,
@@ -46,19 +48,17 @@ pub fn craft_operator_data(
     current_epoch: u64,
 ) -> Result<RawBytes> {
 
-    let provider_id: ActorID = provider[2..].parse()?; // provider like f01234
-    //let piece_cid_bytes = parse_base32_cid_to_bytes(piece_cid_str)?;
-    let piece_cid_bytes = multibase::decode(piece_cid_str)
-    .map_err(|e| anyhow::anyhow!("Failed to decode multibase CID: {}", e))?
-    .1;
+    let piece_cid = Cid::try_from(piece_cid_str)?;
+    //let multihash_bytes = piece_cid.hash().to_bytes();
+    //println!("Multihash bytes: {:02x?}", multihash_bytes);
 
     let alloc = AllocationRequest {
-        provider: provider_id,
-        data: piece_cid_bytes,
+        provider: provider.parse()?,
+        data: piece_cid,
         size: PaddedPieceSize(padded_size),
-        term_min: 180 * 2880,
-        term_max: 540 * 2880,
-        expiration: current_epoch as ChainEpoch + 600 * 2880,
+        term_min: 180 * EPOCHS_PER_DAY,
+        term_max: 540 * EPOCHS_PER_DAY,
+        expiration: current_epoch as i64 + 60 * EPOCHS_PER_DAY,
     };
 
     let payload = AllocationRequests {
@@ -74,7 +74,7 @@ pub fn craft_transfer_params(
     allocation_data: RawBytes,
 ) -> Result<TransferParams> {
     Ok(TransferParams {
-        to: Address::new_id(6), // f06
+        to: Address::new_id(6),
         amount: TokenAmount::from_atto(datacap_amount.parse::<u128>()?),
         operator_data: allocation_data,
     })

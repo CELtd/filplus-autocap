@@ -52,9 +52,9 @@ fn main() -> Result<()> {
     let transfer_params = craft_transfer_from_payload(
                     &provider_id.to_string(), // SP address
                     "bafy2bzacec7a6itfsidhsg3jrdjumrrfmmekvuz3e2n7zwllc5c5dxts7tntw",    // piece CID
-                    1024,           // 1 KiB
+                    1048576,           // 1 KiB
                     current_block, //Current block
-                    "1024000000000000000000"          // datacap amount (in bytes) 1 KiB
+                    "1048576000000000000000000"          // datacap amount (in bytes) 1 KiB
                 )?;
     println!("{:?}", transfer_params);
     let cid = create_datacap_allocation(transfer_params, &connection, &wallet)?;
