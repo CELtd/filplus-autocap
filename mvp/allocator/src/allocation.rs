@@ -41,8 +41,10 @@ pub struct TransferParams {
 pub fn craft_operator_data(
     provider: &str,
     piece_cid_str: &str,
-    padded_size: u64,
-    current_epoch: u64,
+    padded_size: &u64,
+    term_min: &i64,
+    term_max: &i64,
+    current_epoch: &u64,
 ) -> Result<RawBytes> {
 
     let piece_cid = Cid::try_from(piece_cid_str)?;
@@ -52,10 +54,10 @@ pub fn craft_operator_data(
     let alloc = AllocationRequest {
         provider: provider.parse()?,
         data: piece_cid,
-        size: PaddedPieceSize(padded_size),
-        term_min: 180 * EPOCHS_PER_DAY,
-        term_max: 540 * EPOCHS_PER_DAY,
-        expiration: current_epoch as i64 + 1 * EPOCHS_PER_DAY,
+        size: PaddedPieceSize(*padded_size),
+        term_min: *term_min,
+        term_max: *term_max,
+        expiration: *current_epoch as i64 + 1 * EPOCHS_PER_DAY, //TODO fix this dummy 1
     };
 
     let payload = AllocationRequests {
@@ -80,11 +82,13 @@ pub fn craft_transfer_params(
 pub fn craft_transfer_from_payload(
     provider_addr: &str,
     piece_cid_str: &str,
-    padded_size: u64,
-    current_epoch: u64,
+    padded_size: &u64,
+    term_min: &i64,
+    term_max: &i64,
+    current_epoch: &u64,
     datacap_amount: &str,
 ) -> Result<TransferParams> {
-    let operator_data = craft_operator_data(provider_addr, piece_cid_str, padded_size, current_epoch)?;
-    println!("Raw CBOR: {:02x?}", operator_data.to_vec());
+    let operator_data = craft_operator_data(provider_addr, piece_cid_str, padded_size, term_min, term_max, current_epoch)?;
+    //println!("Raw CBOR: {:02x?}", operator_data.to_vec());
     craft_transfer_params(datacap_amount, operator_data)
 }

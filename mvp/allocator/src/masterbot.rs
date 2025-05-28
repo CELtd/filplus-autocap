@@ -4,6 +4,7 @@ use reqwest::blocking::Client;
 use anyhow::Result;
 use cid::Cid;
 use std::str::FromStr;
+use std::collections::HashSet;
 
 use crate::wallet::Wallet;
 use crate::rpc::{get_chain_head_block_number, get_block_info, send_fil_to, Connection, create_datacap_allocation};
@@ -163,29 +164,66 @@ impl MasterBot {
         Ok(())
     }
 
+    fn create_allocations(&mut self) -> Result<()> {
+        let mut seen_cids: HashSet<String> = HashSet::new();
 
-    fn create_allocations(&self) -> Result<()> {
-    
-        // Run through the txs, check the credit of the SP
         for tx in self.auction.transactions.iter() {
-            if let Some(sp_credit) = self.registry.credits.get(&tx.from) {
-                println!("📦 SP {} has {} bytes of credit", tx.from, sp_credit);
-                // TODO: use sp_credit to decide on allocation
-                let params_bytes = craft_transfer_from_payload(
-                    &tx.from,              // provider
-                    "baga6ea4seaqb...",    // piece CID
-                    34359738368,           // 32 GiB
-                    self.last_auction_block, //Current block
-                    "34359738368"          // datacap amount (in bytes)
-                )?;
-                println!("{:?}", params_bytes);
+            let sender = &tx.from;
+
+            if let Some(metadata) = &tx.metadata {
+                // Avoid processing the same CID twice
+                let cid_str = metadata.data.to_string();
+                if seen_cids.contains(&cid_str) {
+                    println!("⚠️ Skipping duplicate deal CID: {}", cid_str);
+                    continue;
+                }
+
+                // Check if SP has credit
+                if let Some(sp_credit) = self.registry.credits.get(sender) {
+                    println!("📦 SP {} has {} bytes of credit", sender, sp_credit);
+
+                    let datacap_required = metadata.size.0;
+                    if *sp_credit >= datacap_required {
+                        // Craft transfer params
+                        let transfer_params_bytes = craft_transfer_from_payload(
+                            &metadata.provider.to_string(),
+                            &metadata.data.to_string(),
+                            &datacap_required,
+                            &metadata.term_min,
+                            &metadata.term_max,
+                            &self.last_auction_block,
+                            &metadata.size.0.to_string(),
+                        )?;
+
+                        // Send allocation tx
+                        let cid = create_datacap_allocation(transfer_params_bytes, &self.connection, &self.wallet)?;
+                        println!("✅ Allocation created for SP {} → Tx CID: {:?}", sender, cid);
+
+                        // Deduct credit
+                        self.registry.credits.insert(sender.clone(), sp_credit - metadata.size.0);
+                       
+                        // Re-fetch updated credit
+                        if let Some(updated_credit) = self.registry.credits.get(sender) {
+                            println!("📦 SP {} has {} bytes of credit remaining", sender, updated_credit);
+                        }
+
+                        // Track used CID
+                        seen_cids.insert(cid_str);
+                    } else {
+                        println!(
+                            "⚠️  SP {} has insufficient credit for allocation. Required: {}, Available: {}",
+                            sender, metadata.size.0, sp_credit
+                        );
+                    }
+                } else {
+                    println!("⚠️  SP {} has no credit entry", sender);
+                }
             } else {
-                println!("⚠️ SP {} has no credit entry", tx.from);
+                println!("⚠️  Transaction from {} has no metadata. Skipping.", sender);
             }
         }
-        // If sufficient for the metadata of the tx, create the allocation, update the credit
-        // If not sufficient skip it
-        // Note: pay attention that an SP could send you metadata of the same deal. Beware of this when you create allocations
+
+        self.registry.save()?;
         Ok(())
     }
 

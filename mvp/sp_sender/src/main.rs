@@ -38,7 +38,7 @@ fn main() -> Result<()> {
     let metadata = Metadata {
         provider: 1234 as u64,
         data: cid,
-        size: PaddedPieceSize(1 << 30), // 1 GiB
+        size: PaddedPieceSize(1 << 10), // 1 GiB
         term_min: 100,
         term_max: 200,
         expiration: 500,

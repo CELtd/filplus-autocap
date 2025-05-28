@@ -56,11 +56,10 @@ pub fn filter_incoming_txs(messages: &Value, wallet_address: &str, block_number:
                     let bytes = base64_engine.decode(raw).ok()?;
                     match serde_cbor::from_slice::<Metadata>(&bytes) {
                         Ok(m) => {
-                            println!("✅ Decoded Metadata: {:?}", m);
                             Some(m)
                         },
                         Err(e) => {
-                            println!("❌ CBOR decode error: {:?}", e);
+                            println!("❌ CBOR decode error of tx metadata: {:?}", e);
                             None
                         }
                     }
