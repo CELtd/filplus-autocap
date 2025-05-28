@@ -13,11 +13,8 @@ use multibase::decode;
 use crate::constants::EPOCHS_PER_DAY;
 
 pub type ClaimExtensionRequest = ();
-//I am working on Filecoin tooling using fvm_ipld_encoding (0.3.3), which expects Cid from the cid 0.10 crate. 
-//However, my dependency tree includes filecoin-signer and various fil_actor_* crates, which pull in cid 0.8.6. 
-//This causes a type mismatch: the Cid used in my code is not the same as the one expected by fvm_ipld_encoding, so Serialize_tuple fails. 
-//I need a way to ensure that only cid 0.10 is used throughout the dependency graph, or to patch the older dependencies to unify on the correct version.
-#[derive(Debug, Serialize_tuple, Deserialize_tuple)]
+
+#[derive(Debug, Serialize_tuple, Deserialize_tuple, Clone)]
 pub struct AllocationRequest {
     pub provider: ActorID,
     pub data: Cid, 
@@ -58,7 +55,7 @@ pub fn craft_operator_data(
         size: PaddedPieceSize(padded_size),
         term_min: 180 * EPOCHS_PER_DAY,
         term_max: 540 * EPOCHS_PER_DAY,
-        expiration: current_epoch as i64 + 60 * EPOCHS_PER_DAY,
+        expiration: current_epoch as i64 + 1 * EPOCHS_PER_DAY,
     };
 
     let payload = AllocationRequests {

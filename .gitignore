@@ -43,11 +43,20 @@ htmlcov/
 data/
 output/
 
-# Rust MVP
-mvp/target
-mvp/.env
-mvp/.wallet.json
-mvp/.auction.json
-mvp/.registry.json
-mvp/.private
-mvp/Cargo.lock
+# Rust MVP Allocator
+mvp/allocator/target
+mvp/allocator/.env
+mvp/allocator/.wallet.json
+mvp/allocator/.auction.json
+mvp/allocator/.registry.json
+mvp/allocator/.private
+mvp/allocator/Cargo.lock
+
+# Rust MVP SP client
+mvp/sp_sender/target
+mvp/sp_sender/.env
+mvp/sp_sender/.wallet.json
+mvp/sp_sender/.auction.json
+mvp/sp_sender/.registry.json
+mvp/sp_sender/.private
+mvp/sp_sender/Cargo.lock
