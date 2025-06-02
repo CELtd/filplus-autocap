@@ -15,22 +15,9 @@ use dotenv::dotenv;
 use std::env;
 
 
-use crate::wallet::{self, Wallet};
+use crate::wallet::{Wallet};
 use crate::allocation::TransferParams;
-
-//Connection struct to perform JSON-RPC requests
-pub struct Connection {
-    pub client: Client,
-    pub rpc_url: String,
-}
-impl Connection {
-    pub fn new(rpc_url: &str) -> Self {
-        Self {
-            client: Client::new(),
-            rpc_url: rpc_url.to_string(),
-        }
-    }
-}
+use crate::rpc::Connection;
 
 // Load lotus jwt token for local devnet
 fn load_token_from_env() -> Result<String, anyhow::Error> {
@@ -281,64 +268,10 @@ pub fn send_fil_to(connection: &Connection, from: &Wallet, to: &str, amount_atto
 
 }
 
-//pub fn query_filecoin_actor(client: &Client, from: &Wallet, to_actor_id: &Address, amount_atto: &str, method_num : &u128, rpc_url: &str) -> Result<String> {
-//    
-//    // Step 1: Fetch nonce
-//    let nonce = fetch_nonce(&client, &of.address, &rpc_url)?;
-//    
-//
-//    // Step 2: Derive key and encode your address
-//    let key = key_derive(&of.mnemonic, &of.derivation_path, "", &of.language)?;
-//    let addr = Address::from_str(&of.address.clone())?;
-//    let params = RawBytes::new(to_vec(&addr)?);
-//    //println!("push_msg: {:#?}", Address::new_id(7));
-//
-//    // Step 3: Build the message
-//    let message = Message {
-//        version: 0,
-//        to: Address::new_id(7), //Datacap Actor id
-//        from: addr.clone(),
-//        sequence: nonce,
-//        value: TokenAmount::from_atto(0u8),
-//        method_num: 3261979605, // Balance
-//        params,
-//        gas_limit: 3000000,
-//        gas_fee_cap: TokenAmount::from_atto("5000000000".parse::<u128>()?),
-//        gas_premium: TokenAmount::from_atto("5000000000".parse::<u128>()?),
-//    };
-//
-//    // Step 4: Sign it
-//    let signed = transaction_sign(&message, &key.private_key)?;
-//
-//    // Step 5: Build proper JSON
-//    let push_msg = json!({
-//        "Message": {
-//            "Version": message.version,
-//            "To": message.to.to_string(),
-//            "From": message.from.to_string(),
-//            "Nonce": message.sequence,
-//            "Value": message.value.atto().to_string(),
-//            "GasLimit": message.gas_limit,
-//            "GasFeeCap": message.gas_fee_cap.atto().to_string(),
-//            "GasPremium": message.gas_premium.atto().to_string(),
-//            "Method": message.method_num,
-//            "Params": general_purpose::STANDARD.encode(message.params.to_vec()),
-//        },
-//        "Signature": {
-//            "Type": signed.signature.signature_type() as u8,
-//            "Data": general_purpose::STANDARD.encode(signed.signature.bytes()),
-//        }
-//    });
-//
-//    // Push message
-//    let cid = push_msg_to_mempool(&client, &rpc_url, &push_msg)?;
-//    Ok(cid)
-//}
-
 pub fn create_datacap_allocation(transfer_params:TransferParams, connection: &Connection, wallet: &Wallet) -> Result<String> {
 
     
-    const DATACAP_ACTOR_ID: u64 = 7;
+    const DATACAP_ACTOR_ID: u64 = 7; //TODO
 
     // Step 1: Fetch nonce
     let nonce = fetch_nonce(&connection, &wallet.address)?;
@@ -449,56 +382,6 @@ pub fn get_datacap_balance_as_tx(connection: &Connection, of: &Wallet) -> Result
     Ok(cid)
 }
 
-//pub fn send_datacap_transfer(
-//    connection: &Connection,
-//    from: &Wallet,
-//    amount: &str, // in atto
-//    operator_data: Vec<u8>, // CBOR-encoded AllocationRequests
-//) -> Result<String> {
-//    const VERIFIED_REGISTRY_ACTOR_ID: u64 = 6;
-//    const TRANSFER_FROM_METHOD: u64 = 3621052141;
-//
-//    let nonce = fetch_nonce(&connection, &from.address)?;
-//    let key = key_derive(&from.mnemonic, &from.derivation_path, "", &from.language)?;
-//
-//    let params = RawBytes::new(operator_data);
-//
-//    let message = Message {
-//        version: 0,
-//        to: Address::new_id(VERIFIED_REGISTRY_ACTOR_ID),
-//        from: Address::from_str(&from.address)?,
-//        sequence: nonce,
-//        value: TokenAmount::from_atto(amount.parse::<u128>()?),
-//        method_num: TRANSFER_FROM_METHOD,
-//        params,
-//        gas_limit: 20_000_000,
-//        gas_fee_cap: TokenAmount::from_atto("5000000000".parse::<u128>()?),
-//        gas_premium: TokenAmount::from_atto("5000000000".parse::<u128>()?),
-//    };
-//
-//    let signed = transaction_sign(&message, &key.private_key)?;
-//
-//    let push_msg = json!({
-//        "Message": {
-//            "Version": message.version,
-//            "To": message.to.to_string(),
-//            "From": message.from.to_string(),
-//            "Nonce": message.sequence,
-//            "Value": message.value.atto().to_string(),
-//            "GasLimit": message.gas_limit,
-//            "GasFeeCap": message.gas_fee_cap.atto().to_string(),
-//            "GasPremium": message.gas_premium.atto().to_string(),
-//            "Method": message.method_num,
-//            "Params": general_purpose::STANDARD.encode(message.params.to_vec()),
-//        },
-//        "Signature": {
-//            "Type": signed.signature.signature_type() as u8,
-//            "Data": general_purpose::STANDARD.encode(signed.signature.bytes()),
-//        }
-//    });
-//
-//    push_msg_to_mempool(&connection, &push_msg)
-//}
 
 
 

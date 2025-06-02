@@ -37,3 +37,9 @@ pub fn fil_to_atto_string(fil: f64) -> String {
     let atto_dec = fil_dec * dec!(1_000_000_000_000_000_000);
     atto_dec.round().to_string()
 }
+
+/// Converts attoFIL (string) to FIL (float). //TODO in utils
+pub fn wei_to_fil(wei: &str) -> f64 {
+    wei.parse::<f64>().unwrap_or(0.0) / 1e18
+}
+

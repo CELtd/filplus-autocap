@@ -39,3 +39,4 @@ impl Registry {
         }
     }
 }
+

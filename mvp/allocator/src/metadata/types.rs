@@ -1,8 +1,6 @@
 use cid::Cid;
-use fvm_shared::{ActorID, clock::ChainEpoch, piece::PaddedPieceSize};
+use fvm_shared::{clock::ChainEpoch, piece::PaddedPieceSize};
 use serde::{Serialize, Deserialize};
-use serde_cbor::to_vec;
-use serde_json::json;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Metadata {
@@ -36,3 +34,5 @@ impl From<&Metadata> for MetadataDisplay {
         }
     }
 }
+
+

@@ -1,7 +1,5 @@
 use crate::transaction::{Transaction, TransactionDisplay};
 use serde::{Deserialize, Serialize};
-use anyhow::Result;
-use std::fs;
 
 /// Internal auction state, used in logic.
 #[derive(Debug, Serialize, Deserialize, Clone)]

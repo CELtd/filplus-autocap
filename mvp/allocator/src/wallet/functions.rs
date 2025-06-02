@@ -1,19 +1,12 @@
 use filecoin_signer::{key_generate_mnemonic, key_derive};
-use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 use anyhow::Result;
 
-const DERIVATION_PATH: &str = "m/44'/461'/0/0/0";
-const LANGUAGE: &str = "en";
+use crate::wallet::Wallet;
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Wallet {
-    pub mnemonic: String,
-    pub address: String,
-    pub derivation_path: String,
-    pub language: String,
-}
+const DERIVATION_PATH: &str = "m/44'/461'/0/0/0"; // TODO: somewhere else?
+const LANGUAGE: &str = "en";                      // TODO: somewhere else?
 
 pub fn load_or_create_wallet(path: &str) -> Result<Wallet> {
     if Path::new(path).exists() {

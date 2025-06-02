@@ -1,46 +1,21 @@
 use std::thread::{sleep};
 use std::time::Duration;
-use reqwest::blocking::Client;
+
 use anyhow::Result;
 use std::collections::HashSet;
 use log::{info, warn, error};
 
-use crate::wallet::Wallet;
-use crate::rpc::{get_chain_head_block_number, get_block_info, send_fil_to, Connection, create_datacap_allocation};
+
+use crate::rpc::{get_chain_head_block_number, get_block_info, send_fil_to,  create_datacap_allocation};
 use crate::transaction::filter_incoming_txs;
-use crate::auction::{Auction, AuctionReward};
-use crate::registry::{Registry};
+use crate::auction::{AuctionReward};
 use crate::utils::{format_datacap_size, fil_to_atto_string};
 use crate::allocation::{craft_transfer_from_payload};
-use crate::constants::bot::{BURN_FEE, DATACAP_ISSUANCE_ROUND, AUCTION_INTERVAL};
+use crate::constants::bot::{BURN_FEE, DATACAP_ISSUANCE_ROUND};
+use crate::masterbot::MasterBot;
 
-pub struct MasterBot {
-    pub wallet: Wallet,
-    pub connection: Connection,
-    pub last_block: u64,
-    pub last_auction_block: u64,
-    pub auction: Auction,
-    pub auction_interval: u64,
-    pub registry: Registry,
-}
 
 impl MasterBot {
-    pub fn new(wallet: Wallet, connection: Connection, start_block: u64, auction_file: &str, registry_file: &str) -> Result<Self,anyhow::Error> {
-        // Load auction and registry
-        let auction = Auction::load_or_new(auction_file)?;
-        let registry = Registry::load_or_new(registry_file)?;
-        let auction_interval = AUCTION_INTERVAL;
-        Ok(Self {
-            wallet,
-            connection,
-            last_block: start_block,
-            last_auction_block: start_block,
-            auction,
-            auction_interval,
-            registry,
-        })
-    }
-
     pub fn run(&mut self) {
         info!("🤖 MasterBot started at block {}", self.last_block);
 
@@ -240,3 +215,4 @@ impl MasterBot {
 
 
 }
+
