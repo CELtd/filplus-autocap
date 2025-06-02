@@ -55,8 +55,10 @@ pub fn craft_operator_data(
         provider: provider.parse()?,
         data: piece_cid,
         size: PaddedPieceSize(*padded_size),
-        term_min: *term_min,
-        term_max: *term_max,
+        //term_min: *term_min,
+        //term_max: *term_max,
+        term_min : 518400,
+        term_max : 2 * 518400,
         expiration: *current_epoch as i64 + 1 * EPOCHS_PER_DAY, //TODO fix this dummy 1
     };
 
@@ -72,9 +74,11 @@ pub fn craft_transfer_params(
     datacap_amount: &str,
     allocation_data: RawBytes,
 ) -> Result<TransferParams> {
+    let bytes = datacap_amount.parse::<u128>()?;
+    let scaled = bytes * 1_000_000_000_000_000_000u128;
     Ok(TransferParams {
         to: Address::new_id(6),
-        amount: TokenAmount::from_atto(datacap_amount.parse::<u128>()?),
+        amount: TokenAmount::from_atto(scaled),
         operator_data: allocation_data,
     })
 }

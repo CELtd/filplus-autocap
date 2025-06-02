@@ -11,6 +11,9 @@ use base64::engine::general_purpose;
 use base64::Engine as _;
 use serde::Serialize;
 use fvm_shared::ActorID;
+use dotenv::dotenv;
+use std::env;
+
 
 use crate::wallet::{self, Wallet};
 use crate::allocation::TransferParams;
@@ -27,6 +30,13 @@ impl Connection {
             rpc_url: rpc_url.to_string(),
         }
     }
+}
+
+// Load lotus jwt token for local devnet
+fn load_token_from_env() -> Result<String, anyhow::Error> {
+    dotenv().ok(); // load from .env
+    let token = env::var("LOTUS_JWT")?;
+    Ok(format!("Bearer {}", token))
 }
 
 /// Get the current head block number from the Filecoin JSON-RPC
@@ -502,9 +512,13 @@ pub fn push_msg_to_mempool(connection: &Connection, push_msg: &Value) -> Result<
         "id": 1
     });
 
+    // Load JWT token for devnet
+    let token = load_token_from_env()?;
+
     // Send the request and parse response
     let push_resp = connection.client.post(&connection.rpc_url)
         .header("Content-Type", "application/json")
+        .header("Authorization", token) // Only for devnet
         .json(&push_req)
         .send()?
         .json::<Value>()?;

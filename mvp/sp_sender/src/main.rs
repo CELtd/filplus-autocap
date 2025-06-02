@@ -36,17 +36,25 @@ fn main() -> Result<()> {
 
     let cid = Cid::try_from("baga6ea4seaqcbzdyshqeqxw2hw2nbv2a45vruq54mc7f3ukgdtqjmdv7n7p7gqq").unwrap();
     let metadata = Metadata {
-        provider: 1234 as u64,
+        provider: 1000 as u64,
         data: cid,
-        size: PaddedPieceSize(1 << 10), // 1 GiB
+        size: PaddedPieceSize(1 << 10), // 1 KiB
         term_min: 100,
         term_max: 200,
         expiration: 500,
     };
     
-    let masterbot_wallet = "f1ypey2rhkbtdassaz5ydtlri3slupzhrylbbguoa";
-    let cid = send_message_to(&connection, &wallet, &masterbot_wallet, "1000000000000000", &metadata)?; // 0.001 FIL in atto
-    println!("Tx CID: {:?}", cid);
+    let cbor_bytes = serde_cbor::to_vec(&metadata).unwrap();
+    let hex_encoded = hex::encode(cbor_bytes); // ← use this in --params-hex
+    println!("{}", hex_encoded);
+    
+    
+    //let masterbot_wallet = "f1ypey2rhkbtdassaz5ydtlri3slupzhrylbbguoa";
+    //let cid = send_message_to(&connection, &wallet, &masterbot_wallet, "1000000000000000", &metadata)?; // 0.001 FIL in atto
+    //println!("Tx CID: {:?}", cid);
+
+
+    
     //let raw = "pmhwcm92aWRlchkE0mRkYXRhWCcBgeIDkiAgIOR4keBIXto9tNDXQOdrGkO8YL5d0UYc4JYOv2/f80Jkc2l6ZRpAAAAAaHRlcm1fbWluGGRodGVybV9tYXgYyGpleHBpcmF0aW9uGQH0";
     //let bytes = base64::engine::general_purpose::STANDARD.decode(raw)?;
     //let metadata: Metadata = serde_cbor::from_slice(&bytes)?;

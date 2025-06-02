@@ -18,6 +18,9 @@ rust_decimal = "1.33"
 rust_decimal_macros = "1.33"
 dotenvy = "0.15"
 multibase = "0.9"
+log = "0.4"
+env_logger = "0.10"
+flexi_logger = "0.27"
 
 # The key insight: use fvm_ipld_encoding 0.2.0 which works with cid 0.8.6
 # This way we align with the existing ecosystem instead of fighting it

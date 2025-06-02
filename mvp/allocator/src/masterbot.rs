@@ -2,9 +2,8 @@ use std::thread::{sleep};
 use std::time::Duration;
 use reqwest::blocking::Client;
 use anyhow::Result;
-use cid::Cid;
-use std::str::FromStr;
 use std::collections::HashSet;
+use log::{info, warn, error};
 
 use crate::wallet::Wallet;
 use crate::rpc::{get_chain_head_block_number, get_block_info, send_fil_to, Connection, create_datacap_allocation};
@@ -12,7 +11,7 @@ use crate::transaction::filter_incoming_txs;
 use crate::auction::{Auction, AuctionReward};
 use crate::registry::{Registry};
 use crate::utils::{format_datacap_size, fil_to_atto_string};
-use crate::allocation::{AllocationRequest, AllocationRequests, craft_transfer_from_payload};
+use crate::allocation::{craft_transfer_from_payload};
 use crate::constants::{BOT_BURN_FEE, BOT_DATACAP_ISSUANCE_ROUND, BOT_AUCTION_INTERVAL};
 
 pub struct MasterBot {
@@ -43,7 +42,7 @@ impl MasterBot {
     }
 
     pub fn run(&mut self) {
-        println!("\n🤖 MasterBot started at block {}", self.last_block);
+        info!("🤖 MasterBot started at block {}", self.last_block);
 
         let mut blocks_left = self.auction_interval;
         loop {
@@ -51,13 +50,13 @@ impl MasterBot {
 
             if current_block > self.last_block {
                 if let Ok(block) = get_block_info(&self.connection, &current_block) {
-                    println!("📦 MasterBot processing block {}", current_block);
+                    info!("📦 MasterBot processing block {}", current_block);
                     self.auction.block_number = current_block;
                     self.process_block(block, current_block);
                     self.last_block = current_block;
 
                     blocks_left -= 1;
-                    println!("⌛ Waiting for next auction round in {} blocks", blocks_left);
+                    info!("⌛ Waiting for next auction round in {} blocks", blocks_left);
                 }
             }
 
@@ -67,7 +66,7 @@ impl MasterBot {
                 blocks_left = self.auction_interval;
             }
 
-            sleep(Duration::from_secs(5));
+            //sleep(Duration::from_secs(1)); //removed in testnet
         }
     }
 
@@ -75,7 +74,7 @@ impl MasterBot {
         
         let transactions = filter_incoming_txs(&block, &self.wallet.address, current_block_number);
         for tx in &transactions {
-            println!("🪙  Detected tx: {} from {} with {} FIL", tx.cid, tx.from, tx.value_fil);
+            info!("🪙  Detected tx: {} from {} with {} FIL", tx.cid, tx.from, tx.value_fil);
             self.auction.transactions.push(tx.clone());
         }
 
@@ -83,16 +82,16 @@ impl MasterBot {
     }
 
     fn execute_auction_round(&mut self) -> Result<()> {
-        println!("🚀 Executing auction round...");
+        info!("🚀 Executing auction round...");
 
         if self.auction.transactions.is_empty() {
-            println!("✅ No transactions. Skipping auction.");
+            info!("✅ No transactions. Skipping auction.");
         } else {
             // Compute auction datacap rewards
             let (total_fil_auction, rewards) = match self.compute_rewards() {
                 Ok(result) => result,
                 Err(e) => {
-                    eprintln!("❌ Failed to compute rewards: {}", e);
+                    error!("❌ Failed to compute rewards: {}", e);
                     return Err(e); // or return Ok(()) if you want to continue silently
                 }
             };
@@ -104,7 +103,7 @@ impl MasterBot {
         }
 
         self.auction.reset();
-        println!("✅ Auction cleared.");
+        info!("✅ Auction cleared.");
         Ok(())
     }
     
@@ -116,7 +115,7 @@ impl MasterBot {
         let total_fil: f64 = txs.iter().map(|tx| tx.value_fil).sum();
     
         if total_fil == 0.0 {
-            println!("✅ Total contribution is zero. Skipping round.");
+            info!("✅ Total contribution is zero. Skipping round.");
             return Ok((0.0, vec![]));
         }
     
@@ -143,7 +142,7 @@ impl MasterBot {
         }
         
         for auction_reward in rewards.iter(){
-            println!("💸 {} gained {} DataCap", auction_reward.address, format_datacap_size(auction_reward.reward));
+            info!("💸 {} gained {} DataCap", auction_reward.address, format_datacap_size(auction_reward.reward));
         }
 
         Ok((total_fil, rewards))
@@ -174,13 +173,13 @@ impl MasterBot {
                 // Avoid processing the same CID twice
                 let cid_str = metadata.data.to_string();
                 if seen_cids.contains(&cid_str) {
-                    println!("⚠️ Skipping duplicate deal CID: {}", cid_str);
+                    warn!("⚠️ Skipping duplicate deal CID: {}", cid_str);
                     continue;
                 }
 
                 // Check if SP has credit
                 if let Some(sp_credit) = self.registry.credits.get(sender) {
-                    println!("📦 SP {} has {} bytes of credit", sender, sp_credit);
+                    info!("📦 SP {} has {} bytes of credit", sender, sp_credit);
 
                     let datacap_required = metadata.size.0;
                     if *sp_credit >= datacap_required {
@@ -197,29 +196,29 @@ impl MasterBot {
 
                         // Send allocation tx
                         let cid = create_datacap_allocation(transfer_params_bytes, &self.connection, &self.wallet)?;
-                        println!("✅ Allocation created for SP {} → Tx CID: {:?}", sender, cid);
+                        info!("✅ Allocation created for SP {} → Tx CID: {:?}", sender, cid);
 
                         // Deduct credit
                         self.registry.credits.insert(sender.clone(), sp_credit - metadata.size.0);
                        
                         // Re-fetch updated credit
                         if let Some(updated_credit) = self.registry.credits.get(sender) {
-                            println!("📦 SP {} has {} bytes of credit remaining", sender, updated_credit);
+                            info!("📦 SP {} has {} bytes of credit remaining", sender, updated_credit);
                         }
 
                         // Track used CID
                         seen_cids.insert(cid_str);
                     } else {
-                        println!(
+                        warn!(
                             "⚠️  SP {} has insufficient credit for allocation. Required: {}, Available: {}",
                             sender, metadata.size.0, sp_credit
                         );
                     }
                 } else {
-                    println!("⚠️  SP {} has no credit entry", sender);
+                    warn!("⚠️  SP {} has no credit entry", sender);
                 }
             } else {
-                println!("⚠️  Transaction from {} has no metadata. Skipping.", sender);
+                warn!("⚠️  Transaction from {} has no metadata. Skipping.", sender);
             }
         }
 
@@ -232,8 +231,8 @@ impl MasterBot {
         let burn_fee = BOT_BURN_FEE * total_fil;
         let burn_fee_atto = fil_to_atto_string(burn_fee);
         match send_fil_to(&self.connection, &self.wallet, "f099", &burn_fee_atto) {
-            Ok(cid) => println!("🔥 Sent {} aFIL to burn address. CID: {}", burn_fee_atto, cid),
-            Err(e) => eprintln!("❌ Failed to send burn fee: {}", e),
+            Ok(cid) => info!("🔥 Sent {} aFIL to burn address. CID: {}", burn_fee_atto, cid),
+            Err(e) => error!("❌ Failed to send burn fee: {}", e),
         }
     
         Ok(())
