@@ -50,11 +50,11 @@ fn main() -> Result<()> {
 
     // Get FIL and DataCap Balance of wallet
     let balance: String = fetch_balance(&connection, &wallet.address)?;
-    println!("💰 FIL balance: {} attoFIL", balance);
+    log::info!("💰 FIL balance: {} attoFIL", balance);
     let datacap_bytes: String = fetch_datacap_balance(&connection, &wallet.address)?;
 
     let readable: String = format_datacap_size_str(&datacap_bytes);
-    println!("✅ Datacap balance: {}", readable);
+    log::info!("✅ Datacap balance: {}", readable);
 
     // Initialize and run masterbot
     let current_block: u64 = get_chain_head_block_number(&connection).unwrap_or(0);

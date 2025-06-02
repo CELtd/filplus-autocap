@@ -12,7 +12,7 @@ use crate::auction::{Auction, AuctionReward};
 use crate::registry::{Registry};
 use crate::utils::{format_datacap_size, fil_to_atto_string};
 use crate::allocation::{craft_transfer_from_payload};
-use crate::constants::{BOT_BURN_FEE, BOT_DATACAP_ISSUANCE_ROUND, BOT_AUCTION_INTERVAL};
+use crate::constants::bot::{BURN_FEE, DATACAP_ISSUANCE_ROUND, AUCTION_INTERVAL};
 
 pub struct MasterBot {
     pub wallet: Wallet,
@@ -29,7 +29,7 @@ impl MasterBot {
         // Load auction and registry
         let auction = Auction::load_or_new(auction_file)?;
         let registry = Registry::load_or_new(registry_file)?;
-        let auction_interval = BOT_AUCTION_INTERVAL;
+        let auction_interval = AUCTION_INTERVAL;
         Ok(Self {
             wallet,
             connection,
@@ -125,14 +125,14 @@ impl MasterBot {
         // First pass: floor each allocation
         for tx in txs {
             let weight = tx.value_fil / total_fil;
-            let reward = (weight * BOT_DATACAP_ISSUANCE_ROUND as f64).floor() as u64;
+            let reward = (weight * DATACAP_ISSUANCE_ROUND as f64).floor() as u64;
             rewarded_total += reward;
             let reward_value = AuctionReward::new(tx.from.clone(), reward);
             rewards.push(reward_value);
         }
     
         // Distribute leftover bytes (greedy round-robin)
-        let mut remaining = BOT_DATACAP_ISSUANCE_ROUND - rewarded_total;
+        let mut remaining = DATACAP_ISSUANCE_ROUND - rewarded_total;
         for auction_reward in rewards.iter_mut() {
             if remaining == 0 {
                 break;
@@ -228,7 +228,7 @@ impl MasterBot {
 
     fn burn_fees(&self, total_fil: f64) -> Result<()> {
         // Compute total burn fee and send it
-        let burn_fee = BOT_BURN_FEE * total_fil;
+        let burn_fee = BURN_FEE * total_fil;
         let burn_fee_atto = fil_to_atto_string(burn_fee);
         match send_fil_to(&self.connection, &self.wallet, "f099", &burn_fee_atto) {
             Ok(cid) => info!("🔥 Sent {} aFIL to burn address. CID: {}", burn_fee_atto, cid),

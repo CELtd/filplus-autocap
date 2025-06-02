@@ -10,7 +10,7 @@ use fvm_shared::{ActorID, clock::ChainEpoch, piece::PaddedPieceSize};
 use cid::Cid;
 use multibase::decode;
 
-use crate::constants::EPOCHS_PER_DAY;
+use crate::constants::filecoin::EPOCHS_PER_DAY;
 
 pub type ClaimExtensionRequest = ();
 

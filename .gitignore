@@ -52,6 +52,7 @@ mvp/allocator/.registry.json
 mvp/allocator/.private
 mvp/allocator/Cargo.lock
 mvp/allocator/lotus_wallet.key
+mvp/allocator/logs
 
 # Rust MVP SP client
 mvp/sp_sender/target
