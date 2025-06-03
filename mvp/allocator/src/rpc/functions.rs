@@ -1,5 +1,4 @@
 use anyhow::{Result, anyhow};
-use reqwest::blocking::Client;
 use serde_json::{json, Value};
 use fvm_shared::address::Address;
 use filecoin_signer::{key_derive, transaction_sign};
@@ -9,7 +8,6 @@ use fvm_shared::econ::TokenAmount;
 use fvm_ipld_encoding::{RawBytes, to_vec};
 use base64::engine::general_purpose;
 use base64::Engine as _;
-use serde::Serialize;
 use fvm_shared::ActorID;
 use dotenv::dotenv;
 use std::env;
@@ -18,15 +16,19 @@ use std::env;
 use crate::wallet::{Wallet};
 use crate::allocation::TransferParams;
 use crate::rpc::Connection;
+use crate::constants::datacap_actor::{DATACAP_ACTOR_ID, DATACAP_TRANSFER_FUNCTION_ID};
 
-// Load lotus jwt token for local devnet
+/// Load Lotus devnet JWT token from environment.
 fn load_token_from_env() -> Result<String, anyhow::Error> {
     dotenv().ok(); // load from .env
     let token = env::var("LOTUS_JWT")?;
     Ok(format!("Bearer {}", token))
 }
+// ----------------------------------
+// Chain Head + Block Information
+// ----------------------------------
 
-/// Get the current head block number from the Filecoin JSON-RPC
+/// Fetch the current head block number (epoch).
 pub fn get_chain_head_block_number(connection: &Connection) -> Result<u64> {
     let payload = json!({
         "jsonrpc": "2.0",
@@ -48,9 +50,9 @@ pub fn get_chain_head_block_number(connection: &Connection) -> Result<u64> {
     Ok(block_number)
 }
 
-/// Fetch full block with all transactions
+/// Fetch full block info including messages at a specific height.
 pub fn get_block_info(connection: &Connection, block_number: &u64) -> Result<Value> {
-    // 1. Get TipSetKey at height
+    // Get TipSetKey at height
     let tipset_req = json!({
         "jsonrpc": "2.0",
         "method": "Filecoin.ChainGetTipSetByHeight",
@@ -74,7 +76,7 @@ pub fn get_block_info(connection: &Connection, block_number: &u64) -> Result<Val
         .map(|cid| json!({ "/": cid["/"].as_str().unwrap_or("") }))
         .collect::<Vec<_>>();
 
-    // 2. Request all messages in the tipset
+    // Request all messages in the tipset
     let messages_req = json!({
         "jsonrpc": "2.0",
         "method": "Filecoin.ChainGetMessagesInTipset",
@@ -82,6 +84,7 @@ pub fn get_block_info(connection: &Connection, block_number: &u64) -> Result<Val
         "id": 1
     });
 
+    // Get Messages in TipSet
     let messages_resp = connection.client.post(&connection.rpc_url)
         .header("Content-Type", "application/json")
         .json(&messages_req)
@@ -91,7 +94,11 @@ pub fn get_block_info(connection: &Connection, block_number: &u64) -> Result<Val
     Ok(messages_resp["result"].clone())
 }
 
+// ----------------------------------
+// Wallet and Address Operations
+// ----------------------------------
 
+/// Fetch nonce for next transaction.
 pub fn fetch_nonce(connection: &Connection, address: &str) -> Result<u64> {
     let payload = json!({
         "jsonrpc": "2.0",
@@ -110,6 +117,7 @@ pub fn fetch_nonce(connection: &Connection, address: &str) -> Result<u64> {
     Ok(nonce)
 }
 
+/// Get FIL balance of an address (attoFIL).
 pub fn fetch_balance(connection: &Connection, address: &str) -> Result<String> {
     let payload = json!({
         "jsonrpc": "2.0",
@@ -127,8 +135,7 @@ pub fn fetch_balance(connection: &Connection, address: &str) -> Result<String> {
     Ok(res["result"].as_str().unwrap_or("0").to_string())
 }
 
-/// Resolves a Filecoin address (like `f1...`, `t1...`, etc.) to its ID address (like `f0...`)
-/// and returns the numeric ActorID.
+/// Resolve a Filecoin address to numeric ActorID.
 pub fn resolve_id_address(connection: &Connection, address: &str) -> Result<ActorID> {
     let payload = json!({
         "jsonrpc": "2.0",
@@ -155,7 +162,11 @@ pub fn resolve_id_address(connection: &Connection, address: &str) -> Result<Acto
     }
 }
 
-// To check
+// ----------------------------------
+// DataCap Queries
+// ----------------------------------
+
+/// Get current verified datacap balance of an address.
 pub fn fetch_datacap_balance(connection: &Connection, address: &str) -> Result<String> {
     let payload = json!({
         "jsonrpc": "2.0",
@@ -173,50 +184,11 @@ pub fn fetch_datacap_balance(connection: &Connection, address: &str) -> Result<S
     Ok(resp["result"].as_str().unwrap_or("0").to_string())
 }
 
-pub fn fetch_datacap_allowance(client: &Client, address: &str, rpc_url: &str) -> Result<String> {
+// ----------------------------------
+// Sending Transactions
+// ----------------------------------
 
-    #[derive(Serialize)]
-    struct GetAllowanceParams(Address, Address);
-    
-    // Step 1: Set up the parameters
-    let params = GetAllowanceParams (
-        Address::from_str("f410fo4l64ogb7kay3bbqmbbj6tpsxlz3eanoqs6nj6q")?, 
-        Address::from_str("f410fo4l64ogb7kay3bbqmbbj6tpsxlz3eanoqs6nj6q")?
-    );
-    
-    let cbor_params = serde_cbor::to_vec(&params)?;
-
-    // Step 2 Build message
-    let message = json!({
-        "To": Address::new_id(7).to_string(),  // DataCap actor
-        "From": Address::from_str("f410furmiftbvstlz3xvjccqdo3376lssdu752ietvpa")?.to_string(), // could be any valid address
-        "Method": serde_json::Value::from(4205072950u64), // allowance()
-        "Params":  general_purpose::STANDARD.encode(cbor_params.to_vec()),
-        "Value": "0"
-    });
-
-
-    let payload = json!({
-        "jsonrpc": "2.0",
-        "method": "Filecoin.StateCall",
-        "params": [message, null],
-        "id": 1
-    });
-    println!("\n{:?}\n", payload);
-
-
-    let resp = client.post(rpc_url)
-        .header("Content-Type", "application/json")
-        .json(&payload)
-        .send()?
-        .json::<serde_json::Value>()?;
-    println!("{:?}", resp);
-
-    Ok(resp["result"].as_str().unwrap_or("0").to_string())
-}
-
-
-
+/// Send FIL from a wallet to another address.
 pub fn send_fil_to(connection: &Connection, from: &Wallet, to: &str, amount_atto: &str) -> Result<String> {
 
     // Step 1: Fetch nonce
@@ -268,38 +240,35 @@ pub fn send_fil_to(connection: &Connection, from: &Wallet, to: &str, amount_atto
 
 }
 
+/// Create a datacap allocation transaction from a TransferParams object.
 pub fn create_datacap_allocation(transfer_params:TransferParams, connection: &Connection, wallet: &Wallet) -> Result<String> {
 
-    
-    const DATACAP_ACTOR_ID: u64 = 7; //TODO
-
-    // Step 1: Fetch nonce
+    // Fetch nonce
     let nonce = fetch_nonce(&connection, &wallet.address)?;
     
-
-    // Step 2: Derive key and encode your address
-    let key = key_derive(&wallet.mnemonic, &wallet.derivation_path, "", &wallet.language)?;
-    let addr = Address::from_str(&wallet.address.clone())?;
-    //let params_bytes = RawBytes::new(to_vec(&transfer_params)?);
+    // Encode the parameters for the allocation
     let params_vec = to_vec(&transfer_params)?;
-    let raw_params = RawBytes::new(params_vec.clone()); // ✅ only wrap here
+    let raw_params = RawBytes::new(params_vec.clone());
+
+    // Create the message properly encoding the different fields
     let message = Message {
         version: 0,
         from: Address::from_str(&wallet.address)?,
-        to: Address::new_id(7), // f07 = Datacap Actor
+        to: Address::new_id(DATACAP_ACTOR_ID),
         sequence: nonce,
         value: TokenAmount::from_atto(0u8),
-        method_num: 80475954, // transfer
+        method_num: DATACAP_TRANSFER_FUNCTION_ID,
         params: raw_params,
         gas_limit: 20_000_0000,
         gas_fee_cap: TokenAmount::from_atto("2000000000".parse::<u128>()?),
         gas_premium: TokenAmount::from_atto("2000000000".parse::<u128>()?),
     };
 
-    // Step 4: Sign it
+    // Derive key and sign it
+    let key = key_derive(&wallet.mnemonic, &wallet.derivation_path, "", &wallet.language)?;
     let signed = transaction_sign(&message, &key.private_key)?;
 
-    // Step 5: Build proper JSON
+    // Build proper JSON
     let push_msg = json!({
         "Message": {
             "Version": message.version,
@@ -326,66 +295,11 @@ pub fn create_datacap_allocation(transfer_params:TransferParams, connection: &Co
 }
 
 
-pub fn get_datacap_balance_as_tx(connection: &Connection, of: &Wallet) -> Result<String> {
-    
-    const DATACAP_ACTOR_ID: u64 = 7;
+// ----------------------------------
+// Helpers
+// ----------------------------------
 
-    // Step 1: Fetch nonce
-    let nonce = fetch_nonce(&connection, &of.address)?;
-    
-
-    // Step 2: Derive key and encode your address
-    let key = key_derive(&of.mnemonic, &of.derivation_path, "", &of.language)?;
-    let addr = Address::from_str(&of.address.clone())?;
-    let params = RawBytes::new(to_vec(&addr)?);
-    //println!("push_msg: {:#?}", Address::new_id(7));
-
-    // Step 3: Build the message
-    let message = Message {
-        version: 0,
-        to: Address::new_id(DATACAP_ACTOR_ID), //Datacap Actor id
-        from: addr.clone(),
-        sequence: nonce,
-        value: TokenAmount::from_atto(0u8),
-        method_num: 3261979605, // Balance
-        params,
-        gas_limit: 3000000,
-        gas_fee_cap: TokenAmount::from_atto("5000000000".parse::<u128>()?),
-        gas_premium: TokenAmount::from_atto("5000000000".parse::<u128>()?),
-    };
-
-    // Step 4: Sign it
-    let signed = transaction_sign(&message, &key.private_key)?;
-
-    // Step 5: Build proper JSON
-    let push_msg = json!({
-        "Message": {
-            "Version": message.version,
-            "To": message.to.to_string(),
-            "From": message.from.to_string(),
-            "Nonce": message.sequence,
-            "Value": message.value.atto().to_string(),
-            "GasLimit": message.gas_limit,
-            "GasFeeCap": message.gas_fee_cap.atto().to_string(),
-            "GasPremium": message.gas_premium.atto().to_string(),
-            "Method": message.method_num,
-            "Params": general_purpose::STANDARD.encode(message.params.to_vec()),
-        },
-        "Signature": {
-            "Type": signed.signature.signature_type() as u8,
-            "Data": general_purpose::STANDARD.encode(signed.signature.bytes()),
-        }
-    });
-
-    // Push message
-    let cid = push_msg_to_mempool(&connection, &push_msg)?;
-    Ok(cid)
-}
-
-
-
-
-/// Push a signed message to the Filecoin Mempool and return the CID string.
+/// Push a signed message to the Lotus mempool.
 pub fn push_msg_to_mempool(connection: &Connection, push_msg: &Value) -> Result<String> {
     // Build the RPC request
     let push_req = json!({

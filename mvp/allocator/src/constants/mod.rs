@@ -3,6 +3,12 @@ pub mod filecoin {
     pub const EPOCHS_PER_DAY: i64 = 2880;
 }
 
+// Datacap Actor
+pub mod datacap_actor{
+    pub const DATACAP_ACTOR_ID: u64 = 7; 
+    pub const DATACAP_TRANSFER_FUNCTION_ID: u64 = 80475954; 
+}
+
 // Bot constants
 pub mod bot {
     pub const BURN_FEE: f64 = 0.50;
