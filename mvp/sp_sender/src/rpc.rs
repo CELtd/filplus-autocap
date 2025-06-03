@@ -11,6 +11,8 @@ use base64::engine::general_purpose;
 use base64::Engine as _;
 use serde::Serialize;
 use fvm_shared::ActorID;
+use dotenv::dotenv;
+use std::env;
 
 use crate::wallet::{self, Wallet};
 use crate::metadata::{Metadata, serialize_metadata};
@@ -27,6 +29,13 @@ impl Connection {
             rpc_url: rpc_url.to_string(),
         }
     }
+}
+
+/// Load Lotus devnet JWT token from environment.
+fn load_token_from_env() -> Result<String, anyhow::Error> {
+    dotenv().ok(); // load from .env
+    let token = env::var("LOTUS_JWT")?;
+    Ok(format!("Bearer {}", token))
 }
 
 pub fn fetch_nonce(connection: &Connection, address: &str) -> Result<u64> {
@@ -62,6 +71,48 @@ pub fn fetch_balance(connection: &Connection, address: &str) -> Result<String> {
         .json::<serde_json::Value>()?;
 
     Ok(res["result"].as_str().unwrap_or("0").to_string())
+}
+
+
+/// Import a secp256k1 private key into a local Lotus node
+pub fn import_wallet_key(connection: &Connection, private_key_base64: &str) -> Result<String> {
+
+    // Load JWT token (assumes local devnet)
+    let token = load_token_from_env()?;
+
+    // Build request payload
+    let payload = json!({
+        "jsonrpc": "2.0",
+        "method": "Filecoin.WalletImport",
+        "params": [
+            {
+                "Type": "secp256k1",
+                "PrivateKey": private_key_base64
+            }
+        ],
+        "id": 1
+    });
+
+    let response = connection.client.post(&connection.rpc_url)
+        .header("Content-Type", "application/json")
+        .header("Authorization", token) // Only for devnet
+        .json(&payload)
+        .send()?
+        .json::<Value>()?;
+    
+    // Handle response
+    if let Some(error) = response.get("error") {
+        let message = error.get("message").and_then(|m| m.as_str()).unwrap_or("");
+        if message.contains("key already exists") {
+            println!("✅ Key already exists in Lotus wallet. Proceeding.");
+            return Ok("already imported".to_string());
+        } else {
+            return Err(anyhow!("❌ Wallet import failed: {}", message));
+        }
+    }
+
+    // If successful, return imported address or raw result
+    Ok(response.to_string())
 }
 
 /// Resolves a Filecoin address (like `f1...`, `t1...`, etc.) to its ID address (like `f0...`)
@@ -147,7 +198,63 @@ pub fn send_message_to(connection: &Connection, from: &Wallet, to: &str, amount_
     Ok(cid_str)
 
 }
-/// Push a signed message to the Filecoin Mempool and return the CID string.
+pub fn send_metadata_tx(
+    connection: &Connection,
+    wallet: &Wallet,
+    to_address: &str,
+    amount_fil: f64, // Float FIL value
+    metadata: &Metadata,
+) -> Result<String> {
+    // Convert FIL to attoFIL (1 FIL = 10^18 attoFIL)
+    let amount_atto = (amount_fil * 1e18).round() as u128;
+
+    // Serialize metadata
+    let cbor = serde_cbor::to_vec(metadata)?;
+    let params = RawBytes::new(cbor.clone());
+
+    // Derive key and fetch nonce
+    let key = key_derive(&wallet.mnemonic, &wallet.derivation_path, "", &wallet.language)?;
+    let nonce = fetch_nonce(connection, &wallet.address)?;
+
+    let message = Message {
+        version: 0,
+        from: Address::from_str(&wallet.address)?,
+        to: Address::from_str(to_address)?,
+        sequence: nonce,
+        value: TokenAmount::from_atto(amount_atto),
+        method_num: 0,
+        params,
+        gas_limit: 1_000_000,
+        gas_fee_cap: TokenAmount::from_atto("1000000000".parse::<u128>()?),
+        gas_premium: TokenAmount::from_atto("1000000000".parse::<u128>()?),
+    };
+
+    let signed = transaction_sign(&message, &key.private_key)?;
+
+    let push_msg = serde_json::json!({
+        "Message": {
+            "Version": message.version,
+            "To": message.to.to_string(),
+            "From": message.from.to_string(),
+            "Nonce": message.sequence,
+            "Value": message.value.atto().to_string(),
+            "GasLimit": message.gas_limit,
+            "GasFeeCap": message.gas_fee_cap.atto().to_string(),
+            "GasPremium": message.gas_premium.atto().to_string(),
+            "Method": message.method_num,
+            "Params": general_purpose::STANDARD.encode(cbor),
+        },
+        "Signature": {
+            "Type": signed.signature.signature_type() as u8,
+            "Data": general_purpose::STANDARD.encode(signed.signature.bytes()),
+        }
+    });
+
+    let cid = crate::rpc::push_msg_to_mempool(connection, &push_msg)?;
+    Ok(cid)
+}
+
+/// Push a signed message to the Lotus mempool.
 pub fn push_msg_to_mempool(connection: &Connection, push_msg: &Value) -> Result<String> {
     // Build the RPC request
     let push_req = json!({
@@ -157,9 +264,13 @@ pub fn push_msg_to_mempool(connection: &Connection, push_msg: &Value) -> Result<
         "id": 1
     });
 
+    // Load JWT token for devnet
+    let token = load_token_from_env()?;
+
     // Send the request and parse response
     let push_resp = connection.client.post(&connection.rpc_url)
         .header("Content-Type", "application/json")
+        .header("Authorization", token) // Only for devnet
         .json(&push_req)
         .send()?
         .json::<Value>()?;

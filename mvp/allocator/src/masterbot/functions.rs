@@ -107,9 +107,15 @@ impl MasterBot {
         // Proportional allocation based on FIL contribution
         // First: floor each allocation
         for tx in txs {
-            let weight = tx.value_fil / total_fil;
-            let reward = (weight * DATACAP_ISSUANCE_ROUND as f64).floor() as u64;
-            rewarded_total += reward;
+            let reward: u64;
+            if tx.value_fil == 0.0 { 
+                reward = 0 as u64;
+            }
+            else{
+                let weight = tx.value_fil / total_fil;
+                reward = (weight * DATACAP_ISSUANCE_ROUND as f64).floor() as u64;
+                rewarded_total += reward;
+            }
             let reward_value = AuctionReward::new(tx.from.clone(), reward);
             rewards.push(reward_value);
         }
@@ -119,6 +125,9 @@ impl MasterBot {
         for auction_reward in rewards.iter_mut() {
             if remaining == 0 {
                 break;
+            }
+            if auction_reward.reward == 0 {
+                continue; // skip SPs with 0 FIL contribution
             }
             auction_reward.reward += 1;
             remaining -= 1;

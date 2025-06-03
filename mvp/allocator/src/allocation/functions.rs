@@ -35,6 +35,8 @@ pub fn craft_operator_data(
         provider: provider.parse()?,
         data: piece_cid,
         size: PaddedPieceSize(*padded_size),
+        //term_min: *term_min,
+        //term_max: *term_max,
         term_min: 518_400,                 // TODO: use actual value instead of hardcoded (6 months)
         term_max: 2 * 518_400,             // TODO: use actual value instead of hardcoded (12 months)
         expiration: *current_epoch as i64 + 1 * EPOCHS_PER_DAY, // TODO: calculate based on term
