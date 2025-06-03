@@ -16,6 +16,8 @@ use crate::masterbot::MasterBot;
 
 
 impl MasterBot {
+    /// Start the main loop of the MasterBot.
+    /// Polls blocks, processes incoming txs, and runs auction rounds every `auction_interval`.
     pub fn run(&mut self) {
         info!("🤖 MasterBot started at block {}", self.last_block);
 
@@ -37,6 +39,7 @@ impl MasterBot {
 
             if blocks_left == 0 {
                 self.last_auction_block = current_block;
+                // Run an auction round to distribute datacap and burn fees
                 self.execute_auction_round();
                 blocks_left = self.auction_interval;
             }
@@ -45,6 +48,7 @@ impl MasterBot {
         }
     }
 
+    /// Processes a new block: filters incoming txs and stores them for the current auction.
     fn process_block(&mut self, block: serde_json::Value, current_block_number: u64) {
         
         let transactions = filter_incoming_txs(&block, &self.wallet.address, current_block_number);
@@ -53,9 +57,10 @@ impl MasterBot {
             self.auction.transactions.push(tx.clone());
         }
 
-        self.auction.save(); // Save to disk or memory
+        self.auction.save(); // Update auction state
     }
 
+    /// Runs the auction: rewards SPs, allocates datacap, and burns FIL.
     fn execute_auction_round(&mut self) -> Result<()> {
         info!("🚀 Executing auction round...");
 
@@ -74,15 +79,17 @@ impl MasterBot {
             self.update_registry(rewards);
             // Use the available datacap to perform the allocations
             self.create_allocations();
+            // Send the fee to the burn address
             self.burn_fees(total_fil_auction);
         }
 
+        // Reset the auction
         self.auction.reset();
         info!("✅ Auction cleared.");
         Ok(())
     }
     
-    //
+    /// Computes datacap rewards based on FIL contributions.
     fn compute_rewards(&self) -> Result<(f64, Vec<AuctionReward>)> {
         let txs = &self.auction.transactions;
     
@@ -97,7 +104,8 @@ impl MasterBot {
         let mut rewards: Vec<AuctionReward> = Vec::new();
         let mut rewarded_total = 0u64;
     
-        // First pass: floor each allocation
+        // Proportional allocation based on FIL contribution
+        // First: floor each allocation
         for tx in txs {
             let weight = tx.value_fil / total_fil;
             let reward = (weight * DATACAP_ISSUANCE_ROUND as f64).floor() as u64;
@@ -123,6 +131,7 @@ impl MasterBot {
         Ok((total_fil, rewards))
     }
 
+     /// Updates the credit registry with datacap rewards earned by SPs.
     fn update_registry(&mut self, rewards: Vec<AuctionReward>) -> Result<()> {
         self.registry.block_number = self.last_auction_block;
     
@@ -138,6 +147,7 @@ impl MasterBot {
         Ok(())
     }
 
+    /// Allocates verified datacap to SPs based on their deal metadata and credit.
     fn create_allocations(&mut self) -> Result<()> {
         let mut seen_cids: HashSet<String> = HashSet::new();
 
@@ -158,7 +168,7 @@ impl MasterBot {
 
                     let datacap_required = metadata.size.0;
                     if *sp_credit >= datacap_required {
-                        // Craft transfer params
+                        // Craft parameters to be ingested by tranfer function of DataCap Actor
                         let transfer_params_bytes = craft_transfer_from_payload(
                             &metadata.provider.to_string(),
                             &metadata.data.to_string(),
@@ -176,7 +186,7 @@ impl MasterBot {
                         // Deduct credit
                         self.registry.credits.insert(sender.clone(), sp_credit - metadata.size.0);
                        
-                        // Re-fetch updated credit
+                        // Re-fetch updated credit for printing
                         if let Some(updated_credit) = self.registry.credits.get(sender) {
                             info!("📦 SP {} has {} bytes of credit remaining", sender, updated_credit);
                         }
@@ -197,10 +207,12 @@ impl MasterBot {
             }
         }
 
+        // Update registry
         self.registry.save()?;
         Ok(())
     }
 
+    /// Burns a portion of the contributed FIL as a protocol fee.
     fn burn_fees(&self, total_fil: f64) -> Result<()> {
         // Compute total burn fee and send it
         let burn_fee = BURN_FEE * total_fil;
