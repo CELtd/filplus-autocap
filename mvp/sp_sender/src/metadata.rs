@@ -17,3 +17,16 @@ pub struct Metadata {
 pub fn serialize_metadata(meta: &Metadata) -> Vec<u8> {
     to_vec(meta).expect("failed to serialize metadata")
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CorruptedMetadata {
+    pub provider: u64,
+    pub data: Cid,
+    pub size: PaddedPieceSize,
+    pub term_min: ChainEpoch,
+    pub term_max: ChainEpoch,
+}
+
+pub fn serialize_corrupted_metadata(meta: &CorruptedMetadata) -> Vec<u8> {
+    to_vec(meta).expect("failed to serialize metadata")
+}

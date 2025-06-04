@@ -15,7 +15,7 @@ use dotenv::dotenv;
 use std::env;
 
 use crate::wallet::{self, Wallet};
-use crate::metadata::{Metadata, serialize_metadata};
+use crate::metadata::{Metadata, serialize_metadata, CorruptedMetadata, serialize_corrupted_metadata};
 
 //Connection struct to perform JSON-RPC requests
 pub struct Connection {
@@ -254,6 +254,61 @@ pub fn send_metadata_tx(
     Ok(cid)
 }
 
+pub fn send_corrupted_metadata_tx(
+    connection: &Connection,
+    wallet: &Wallet,
+    to_address: &str,
+    amount_fil: f64, // Float FIL value
+    metadata: &CorruptedMetadata,
+) -> Result<String> {
+    // Convert FIL to attoFIL (1 FIL = 10^18 attoFIL)
+    let amount_atto = (amount_fil * 1e18).round() as u128;
+
+    // Serialize metadata
+    let cbor = serde_cbor::to_vec(metadata)?;
+    let params = RawBytes::new(cbor.clone());
+
+    // Derive key and fetch nonce
+    let key = key_derive(&wallet.mnemonic, &wallet.derivation_path, "", &wallet.language)?;
+    let nonce = fetch_nonce(connection, &wallet.address)?;
+
+    let message = Message {
+        version: 0,
+        from: Address::from_str(&wallet.address)?,
+        to: Address::from_str(to_address)?,
+        sequence: nonce,
+        value: TokenAmount::from_atto(amount_atto),
+        method_num: 0,
+        params,
+        gas_limit: 1_000_000,
+        gas_fee_cap: TokenAmount::from_atto("1000000000".parse::<u128>()?),
+        gas_premium: TokenAmount::from_atto("1000000000".parse::<u128>()?),
+    };
+
+    let signed = transaction_sign(&message, &key.private_key)?;
+
+    let push_msg = serde_json::json!({
+        "Message": {
+            "Version": message.version,
+            "To": message.to.to_string(),
+            "From": message.from.to_string(),
+            "Nonce": message.sequence,
+            "Value": message.value.atto().to_string(),
+            "GasLimit": message.gas_limit,
+            "GasFeeCap": message.gas_fee_cap.atto().to_string(),
+            "GasPremium": message.gas_premium.atto().to_string(),
+            "Method": message.method_num,
+            "Params": general_purpose::STANDARD.encode(cbor),
+        },
+        "Signature": {
+            "Type": signed.signature.signature_type() as u8,
+            "Data": general_purpose::STANDARD.encode(signed.signature.bytes()),
+        }
+    });
+
+    let cid = crate::rpc::push_msg_to_mempool(connection, &push_msg)?;
+    Ok(cid)
+}
 /// Push a signed message to the Lotus mempool.
 pub fn push_msg_to_mempool(connection: &Connection, push_msg: &Value) -> Result<String> {
     // Build the RPC request

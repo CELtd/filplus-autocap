@@ -167,7 +167,7 @@ impl MasterBot {
                 // Avoid processing the same CID twice
                 let cid_str = metadata.data.to_string();
                 if seen_cids.contains(&cid_str) {
-                    warn!("⚠️ Skipping duplicate deal CID: {}", cid_str);
+                    warn!("⚠️  Skipping duplicate deal CID: {}", cid_str);
                     continue;
                 }
 

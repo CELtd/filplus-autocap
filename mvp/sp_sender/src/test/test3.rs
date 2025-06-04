@@ -1,7 +1,6 @@
 use anyhow::Result;
 use dotenvy;
 use std::env;
-use cid::Cid;
 use fvm_shared::piece::PaddedPieceSize;
 use base64::{engine::general_purpose, Engine as _};
 use filecoin_signer::{key_derive};
@@ -10,9 +9,12 @@ use base64::encode;
 use crate::wallet::{load_or_create_wallet, Wallet};
 use crate::rpc::{fetch_balance, send_metadata_tx, import_wallet_key, Connection};
 use crate::metadata::Metadata;
+use cid::{Cid, Version, multihash::{Code, MultihashDigest}};
+use multihash::Multihash;
+use std::error::Error;
 
-/// In this test, we check the behaviour of masterbot when SP sends two txs in the same auction with same CID.
-/// In this case, if it has sufficient credits, the duplicate CID will never land.
+/// In this test, we check the behaviour of masterbot when SP sends two txs in the same auction with different CID
+/// In this case, if it has sufficient credits, the two different allocations will land.
 pub fn run(connection: &Connection) -> Result<()> {
     dotenvy::from_filename(".private/.env").ok();
     let masterbot_address = env::var("MASTERBOT_ADDRESS")?;
@@ -47,16 +49,16 @@ pub fn run(connection: &Connection) -> Result<()> {
     let cbor_bytes = serde_cbor::to_vec(&metadata)?;
     let hex_encoded = hex::encode(cbor_bytes);
     // Send metadata + FIL
-    let amount_in_fil = 0.001;
+    let amount_in_fil = 0.00001;
     let cid = send_metadata_tx(connection, &wallet, &masterbot_address, amount_in_fil, &metadata)?;
     println!("\u{2705} Sent transaction with metadata and {} FIL. CID: {}", amount_in_fil, cid);
 
     // Prepare dummy metadata for second tx, 128 B and same CID
-    let cid = Cid::try_from("baga6ea4seaqcbzdyshqeqxw2hw2nbv2a45vruq54mc7f3ukgdtqjmdv7n7p7gqq")?;
+    let cid = Cid::try_from("bafy2bzacebqo4op74bi5gm3sfra3t34i53fjpdpi7uu7hddp3prsgt4oavdyi")?;
     let metadata = Metadata {
         provider: 1000,
         data: cid,
-        size: PaddedPieceSize(128),
+        size: PaddedPieceSize(256),
         term_min: 100,
         term_max: 200,
         expiration: 500,
@@ -65,9 +67,10 @@ pub fn run(connection: &Connection) -> Result<()> {
     let cbor_bytes = serde_cbor::to_vec(&metadata)?;
     let hex_encoded = hex::encode(cbor_bytes);
     // Send metadata + FIL
-    let amount_in_fil = 0.001;
+    let amount_in_fil = 0.00002;
     let cid = send_metadata_tx(connection, &wallet, &masterbot_address, amount_in_fil, &metadata)?;
     println!("\u{2705} Sent transaction with metadata and {} FIL. CID: {}", amount_in_fil, cid);
 
     Ok(())
 }
+
