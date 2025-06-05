@@ -43,7 +43,7 @@ pub fn run(connection: &Connection) -> Result<()> {
     };
 
     // Send metadata + FIL
-    let amount_in_fil = 0.001;
+    let amount_in_fil = 0.0001;
     let cid = send_corrupted_metadata_tx(connection, &wallet, &masterbot_address, amount_in_fil, &metadata)?;
     println!("\u{2705} Sent transaction with metadata and {} FIL. CID: {}", amount_in_fil, cid);
 

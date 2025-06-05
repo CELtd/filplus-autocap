@@ -328,3 +328,29 @@ pub fn push_msg_to_mempool(connection: &Connection, push_msg: &Value) -> Result<
 
     Ok(cid_str)
 }
+
+/// Check the success of a tx
+pub fn check_msg_success(connection: &Connection, cid: &str) -> Result<bool> {
+
+    // Load JWT token for devnet
+    let token = load_token_from_env()?;
+
+    let replay_req = json!({
+        "jsonrpc": "2.0",
+        "method": "Filecoin.StateWaitMsg",
+        "params": [{"/": cid}, 0],
+        "id": 1
+    });
+
+    let resp = connection.client.post(&connection.rpc_url)
+        .header("Content-Type", "application/json")
+        .header("Authorization", token)
+        .json(&replay_req)
+        .send()?
+        .json::<Value>()?;
+    println!("{:?}", resp);
+
+    let exit_code = resp["result"]["Receipt"]["ExitCode"].as_u64().unwrap_or(1);
+    Ok(exit_code == 0)
+}
+

@@ -51,7 +51,7 @@ impl MasterBot {
     /// Processes a new block: filters incoming txs and stores them for the current auction.
     fn process_block(&mut self, block: serde_json::Value, current_block_number: u64) {
         
-        let transactions = filter_incoming_txs(&block, &self.wallet.address, current_block_number);
+        let transactions = filter_incoming_txs(&block, &self.wallet.address, current_block_number, &self.connection);
         for tx in &transactions {
             info!("🪙  Detected tx: {} from {} with {} FIL", tx.cid, tx.from, tx.value_fil);
             self.auction.transactions.push(tx.clone());

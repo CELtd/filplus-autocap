@@ -224,7 +224,7 @@ pub fn send_metadata_tx(
         value: TokenAmount::from_atto(amount_atto),
         method_num: 0,
         params,
-        gas_limit: 1_000_000,
+        gas_limit: 20_000_000,
         gas_fee_cap: TokenAmount::from_atto("1000000000".parse::<u128>()?),
         gas_premium: TokenAmount::from_atto("1000000000".parse::<u128>()?),
     };
@@ -280,7 +280,7 @@ pub fn send_corrupted_metadata_tx(
         value: TokenAmount::from_atto(amount_atto),
         method_num: 0,
         params,
-        gas_limit: 1_000_000,
+        gas_limit: 20_000_000,
         gas_fee_cap: TokenAmount::from_atto("1000000000".parse::<u128>()?),
         gas_premium: TokenAmount::from_atto("1000000000".parse::<u128>()?),
     };
