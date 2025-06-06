@@ -17,3 +17,9 @@ pub mod bot {
     pub const AUCTION_INTERVAL: u64 = 15;
 }
 
+// Gas cost of operations
+pub mod gas {
+    pub const SEND_FIL_GAS: u64 = 750_000;//730_463;
+    pub const ALLOCATION_GAS: u64 = 20_000_000;//17_291_879;
+}
+

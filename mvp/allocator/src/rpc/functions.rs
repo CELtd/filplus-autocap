@@ -11,12 +11,14 @@ use base64::Engine as _;
 use fvm_shared::ActorID;
 use dotenv::dotenv;
 use std::env;
+use serde::de::DeserializeOwned;
 
 
 use crate::wallet::{Wallet};
 use crate::allocation::TransferParams;
 use crate::rpc::Connection;
 use crate::constants::datacap_actor::{DATACAP_ACTOR_ID, DATACAP_TRANSFER_FUNCTION_ID};
+use crate::constants::gas::{SEND_FIL_GAS, ALLOCATION_GAS};
 
 /// Load Lotus devnet JWT token from environment.
 fn load_token_from_env() -> Result<String, anyhow::Error> {
@@ -196,8 +198,46 @@ pub fn send_fil_to(connection: &Connection, from: &Wallet, to: &str, amount_atto
 
     // Step 2: Derive key
     let key = key_derive(&from.mnemonic, &from.derivation_path, "", &from.language)?;
+    
+    let gas_limit = SEND_FIL_GAS;
 
-    // Step 3: Build message
+    // Step 3: Estimate gas premium
+    let gas_premium: String = call_rpc(
+        connection,
+        "Filecoin.GasEstimateGasPremium",
+        &serde_json::json!([
+            0,
+            &from.address,
+            gas_limit,
+            null
+        ]),
+    )?;
+    let gas_premium_atto = gas_premium.parse::<u128>()?;
+
+    // Step 4: Estimate gas fee cap
+    let fee_cap: String = call_rpc(
+        connection,
+        "Filecoin.GasEstimateFeeCap",
+        &serde_json::json!([
+            {
+                "Version": 0,
+                "To": &to,
+                "From": &from.address,
+                "Nonce": nonce,
+                "Value": amount_atto.to_string(),
+                "GasLimit": gas_limit,
+                "GasFeeCap": "0",
+                "GasPremium": gas_premium_atto.to_string(),
+                "Method": 0,
+                "Params": ""
+            },
+            0,
+            null
+        ]),
+    )?;
+    let gas_fee_cap_atto = fee_cap.parse::<u128>()?;
+
+    // Step 5: Build message
     let message = Message {
         version: 0,
         from: Address::from_str(&from.address.clone())?,
@@ -206,15 +246,15 @@ pub fn send_fil_to(connection: &Connection, from: &Wallet, to: &str, amount_atto
         value: TokenAmount::from_atto(amount_atto.parse::<u128>()?),
         method_num: 0,
         params: RawBytes::new(vec![]),
-        gas_limit: 1000000,
-        gas_fee_cap: TokenAmount::from_atto("1000000000".parse::<u128>()?),
-        gas_premium: TokenAmount::from_atto("1000000000".parse::<u128>()?),
+        gas_limit: gas_limit,
+        gas_fee_cap: TokenAmount::from_atto(gas_fee_cap_atto),
+        gas_premium: TokenAmount::from_atto(gas_premium_atto),
     };
 
-    // Step 4: Sign it
+    // Step 6: Sign it
     let signed = transaction_sign(&message, &key.private_key)?;
 
-    // Step 5: Build correct JSON structure manually
+    // Step 7: Build correct JSON structure manually
     let push_msg = json!({
         "Message": {
             "Version": message.version,
@@ -234,7 +274,7 @@ pub fn send_fil_to(connection: &Connection, from: &Wallet, to: &str, amount_atto
         }
     });
 
-    // Step 6: Push the signed message
+    // Step 8: Push the signed message
     let cid_str = push_msg_to_mempool(&connection, &push_msg)?;
     Ok(cid_str)
 
@@ -243,14 +283,53 @@ pub fn send_fil_to(connection: &Connection, from: &Wallet, to: &str, amount_atto
 /// Create a datacap allocation transaction from a TransferParams object.
 pub fn create_datacap_allocation(transfer_params:TransferParams, connection: &Connection, wallet: &Wallet) -> Result<String> {
 
-    // Fetch nonce
+    // Step 1: Fetch nonce
     let nonce = fetch_nonce(&connection, &wallet.address)?;
     
-    // Encode the parameters for the allocation
+    // Step 2: Encode the parameters for the allocation
     let params_vec = to_vec(&transfer_params)?;
     let raw_params = RawBytes::new(params_vec.clone());
 
-    // Create the message properly encoding the different fields
+    let gas_limit = ALLOCATION_GAS; 
+
+    // Step 3: Estimate gas premium
+    let gas_premium: String = call_rpc(
+        connection,
+        "Filecoin.GasEstimateGasPremium",
+        &serde_json::json!([
+            0,
+            &wallet.address,
+            gas_limit,
+            null
+        ]),
+    )?;
+    let gas_premium_atto = gas_premium.parse::<u128>()?;
+
+    // Step 4: Estimate gas fee cap
+    let fee_cap: String = call_rpc(
+        connection,
+        "Filecoin.GasEstimateFeeCap",
+        &serde_json::json!([
+            {
+                "Version": 0,
+                "To": Address::new_id(DATACAP_ACTOR_ID).to_string(),
+                "From": &wallet.address,
+                "Nonce": nonce,
+                "Value": "0",
+                "GasLimit": gas_limit,
+                "GasFeeCap": "0",
+                "GasPremium": gas_premium_atto.to_string(),
+                "Method": 0,
+                "Params": general_purpose::STANDARD.encode(&params_vec),
+            },
+            0,
+            null
+        ]),
+    )?;
+    let gas_fee_cap_atto = fee_cap.parse::<u128>()?;
+
+
+    // Setp 5: Create the message properly encoding the different fields
     let message = Message {
         version: 0,
         from: Address::from_str(&wallet.address)?,
@@ -259,16 +338,16 @@ pub fn create_datacap_allocation(transfer_params:TransferParams, connection: &Co
         value: TokenAmount::from_atto(0u8),
         method_num: DATACAP_TRANSFER_FUNCTION_ID,
         params: raw_params,
-        gas_limit: 20_000_0000,
+        gas_limit: ALLOCATION_GAS,
         gas_fee_cap: TokenAmount::from_atto("2000000000".parse::<u128>()?),
-        gas_premium: TokenAmount::from_atto("2000000000".parse::<u128>()?),
+        gas_premium: TokenAmount::from_atto("0".parse::<u128>()?),
     };
 
-    // Derive key and sign it
+    // Step 6: Derive key and sign it
     let key = key_derive(&wallet.mnemonic, &wallet.derivation_path, "", &wallet.language)?;
     let signed = transaction_sign(&message, &key.private_key)?;
 
-    // Build proper JSON
+    // Step 7: Build proper JSON
     let push_msg = json!({
         "Message": {
             "Version": message.version,
@@ -288,7 +367,7 @@ pub fn create_datacap_allocation(transfer_params:TransferParams, connection: &Co
         }
     });
 
-    // Push message
+    // Step 8: Push message
     let cid = push_msg_to_mempool(&connection, &push_msg)?;
     Ok(cid)
 
@@ -348,9 +427,39 @@ pub fn check_msg_success(connection: &Connection, cid: &str) -> Result<bool> {
         .json(&replay_req)
         .send()?
         .json::<Value>()?;
-    println!("{:?}", resp);
+    //println!("{:?}", resp);
 
     let exit_code = resp["result"]["Receipt"]["ExitCode"].as_u64().unwrap_or(1);
     Ok(exit_code == 0)
 }
 
+/// Generic helper to call Lotus RPC methods and parse typed results
+pub fn call_rpc<T: DeserializeOwned>(
+    connection: &Connection,
+    method: &str,
+    params: &Value,
+) -> Result<T> {
+    let payload = json!({
+        "jsonrpc": "2.0",
+        "method": method,
+        "params": params,
+        "id": 1
+    });
+
+    let token = load_token_from_env()?; // same as used in `push_msg_to_mempool`
+
+    let resp = connection.client.post(&connection.rpc_url)
+        .header("Content-Type", "application/json")
+        .header("Authorization", token)
+        .json(&payload)
+        .send()?
+        .json::<Value>()?;
+
+    if let Some(err) = resp.get("error") {
+        Err(anyhow::anyhow!("RPC error in `{}`: {:?}", method, err))
+    } else {
+        let result = resp.get("result").ok_or_else(|| anyhow::anyhow!("Missing result field"))?;
+        let typed = serde_json::from_value(result.clone())?;
+        Ok(typed)
+    }
+}
