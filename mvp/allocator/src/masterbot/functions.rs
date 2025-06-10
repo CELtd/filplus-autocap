@@ -22,10 +22,11 @@ impl MasterBot {
         info!("🤖 MasterBot started at block {}", self.last_block);
 
         let mut blocks_left = self.auction_interval;
+        let mut first_block = true;
         loop {
             let current_block = get_chain_head_block_number(&self.connection).unwrap_or(self.last_block);
 
-            if current_block > self.last_block {
+            if current_block > self.last_block || first_block {
                 if let Ok(block) = get_block_info(&self.connection, &current_block) {
                     info!("📦 MasterBot processing block {}", current_block);
                     self.auction.block_number = current_block;
@@ -33,6 +34,7 @@ impl MasterBot {
                     self.last_block = current_block;
 
                     blocks_left -= 1;
+                    first_block = false;
                     info!("⌛ Waiting for next auction round in {} blocks", blocks_left);
                 }
             }
