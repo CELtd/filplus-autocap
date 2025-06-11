@@ -1,7 +1,7 @@
 use crate::{
     wallet::load_or_create_wallet,
     rpc::{Connection, fetch_balance, fetch_datacap_balance, get_chain_head_block_number},
-    utils::format_datacap_size_str,
+    utils::format_datacap_size,
     masterbot::MasterBot,
     runtime::config::AppConfig,
 };
@@ -26,8 +26,8 @@ pub fn run_app(config: AppConfig) -> Result<()> {
     log::info!("💰 FIL balance: {} attoFIL", balance);
 
     // Fetch and log wallet DataCap balance
-    let datacap_bytes = fetch_datacap_balance(&connection, &wallet.address)?;
-    log::info!("✅ Datacap balance: {}", format_datacap_size_str(&datacap_bytes));
+    let datacap = fetch_datacap_balance(&connection, &wallet.address).unwrap_or(0);
+    log::info!("✅ Datacap balance: {}", format_datacap_size(&datacap));
 
     // Fetch latest chain head block number
     let current_block = get_chain_head_block_number(&connection).unwrap_or(0);

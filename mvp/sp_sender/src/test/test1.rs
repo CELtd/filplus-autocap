@@ -11,6 +11,7 @@ use crate::wallet::{load_or_create_wallet, Wallet};
 use crate::rpc::{fetch_balance, send_metadata_tx, import_wallet_key, Connection};
 use crate::metadata::Metadata;
 
+// This test is used to prove that three SPs 
 pub fn run(connection: &Connection) -> anyhow::Result<()> {
     println!("🔧 Creating and importing 10 wallets into Lotus...\n");
     dotenvy::from_filename(".private/.env").ok();

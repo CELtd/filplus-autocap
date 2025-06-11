@@ -4,11 +4,13 @@ use rust_decimal_macros::dec;
 /// Format datacap size (in bytes, as string) into human-readable units like GiB, TiB, etc.
 pub fn format_datacap_size_str(bytes_str: &str) -> String {
     let bytes = bytes_str.parse::<u64>().unwrap_or(0);
-    format_datacap_size(bytes)
+    format_datacap_size(&bytes)
 }
 
-pub fn format_datacap_size(bytes: u64) -> String {
+pub fn format_datacap_size(datacap: &u64) -> String {
 
+
+    let bytes = *datacap;
     const KIB: u64 = 1024;
     const MIB: u64 = KIB * 1024;
     const GIB: u64 = MIB * 1024;

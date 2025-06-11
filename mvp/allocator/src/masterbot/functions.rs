@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use log::{info, warn, error};
 
 
-use crate::rpc::{get_chain_head_block_number, get_block_info, send_fil_to,  create_datacap_allocation};
+use crate::rpc::{get_chain_head_block_number, get_block_info, send_fil_to,  create_datacap_allocation, fetch_datacap_balance};
 use crate::transaction::filter_incoming_txs;
 use crate::auction::{AuctionReward};
 use crate::utils::{format_datacap_size, fil_to_atto_string};
@@ -23,6 +23,7 @@ impl MasterBot {
 
         let mut blocks_left = self.auction_interval;
         let mut first_block = true;
+        //let mut initial_datacap_balance = fetch_datacap_balance(&self.connection, &self.wallet.address).unwrap_or(0);
         loop {
             let current_block = get_chain_head_block_number(&self.connection).unwrap_or(self.last_block);
 
@@ -34,17 +35,26 @@ impl MasterBot {
                     self.last_block = current_block;
 
                     blocks_left -= 1;
-                    first_block = false;
                     info!("⌛ Waiting for next auction round in {} blocks", blocks_left);
+                    //// Fetch datacap from the allocator if we had some allocations
+                    //if blocks_left == self.auction_interval - 2  {
+                    //    let current_datacap_balance = fetch_datacap_balance(&self.connection, &self.wallet.address).unwrap_or(0);
+                    //}
+                    first_block = false;
                 }
             }
 
             if blocks_left == 0 {
                 self.last_auction_block = current_block;
                 // Run an auction round to distribute datacap and burn fees
-                self.execute_auction_round();
+                let datacap_allocated = self.execute_auction_round().unwrap_or(0);
+                if datacap_allocated > 0 {
+                    info!("ℹ️  Masterbot spent {} of DataCap. Requesting {} of DataCap to Allocator", datacap_allocated, datacap_allocated);
+                }
                 blocks_left = self.auction_interval;
             }
+
+            // Fetch datacap from the allocator if we had some allocations
 
             //sleep(Duration::from_secs(1)); //removed in testnet
         }
@@ -63,11 +73,13 @@ impl MasterBot {
     }
 
     /// Runs the auction: rewards SPs, allocates datacap, and burns FIL.
-    fn execute_auction_round(&mut self) -> Result<()> {
+    fn execute_auction_round(&mut self) -> Result<u64> {
+
         info!("🚀 Executing auction round...");
+        let mut datacap_allocated: u64 = 0;
 
         if self.auction.transactions.is_empty() {
-            info!("✅ No transactions. Skipping auction.");
+            info!("ℹ️ No transactions. Skipping auction.");
         } else {
             // Compute auction datacap rewards
             let (total_fil_auction, rewards) = match self.compute_rewards() {
@@ -80,7 +92,7 @@ impl MasterBot {
             // Update credit registry
             self.update_registry(rewards);
             // Use the available datacap to perform the allocations
-            self.create_allocations();
+            datacap_allocated = self.create_allocations()?;
             // Send the fee to the burn address
             self.burn_fees(total_fil_auction);
         }
@@ -88,7 +100,8 @@ impl MasterBot {
         // Reset the auction
         self.auction.reset();
         info!("✅ Auction cleared.");
-        Ok(())
+
+        Ok(datacap_allocated)
     }
     
     /// Computes datacap rewards based on FIL contributions.
@@ -99,7 +112,7 @@ impl MasterBot {
         let total_fil: f64 = txs.iter().map(|tx| tx.value_fil).sum();
     
         if total_fil == 0.0 {
-            info!("✅ Total contribution is zero. Skipping round.");
+            info!("ℹ️ Total contribution is zero. Skipping round.");
             return Ok((0.0, vec![]));
         }
     
@@ -136,7 +149,7 @@ impl MasterBot {
         }
         
         for auction_reward in rewards.iter(){
-            info!("💸 {} gained {} DataCap", auction_reward.address, format_datacap_size(auction_reward.reward));
+            info!("💸 {} gained {} DataCap", auction_reward.address, format_datacap_size(&auction_reward.reward));
         }
 
         Ok((total_fil, rewards))
@@ -159,8 +172,11 @@ impl MasterBot {
     }
 
     /// Allocates verified datacap to SPs based on their deal metadata and credit.
-    fn create_allocations(&mut self) -> Result<()> {
+    fn create_allocations(&mut self) -> Result<u64> {
+
+        let mut datacap_allocated: u64 = 0;
         let mut seen_cids: HashSet<String> = HashSet::new();
+
 
         for tx in self.auction.transactions.iter() {
             let sender = &tx.from;
@@ -175,7 +191,7 @@ impl MasterBot {
 
                 // Check if SP has credit
                 if let Some(sp_credit) = self.registry.credits.get(sender) {
-                    info!("📦 SP {} has {} bytes of credit", sender, sp_credit);
+                    info!("💰 SP {} has {} bytes of credit", sender, sp_credit);
 
                     let datacap_required = metadata.size.0;
                     if *sp_credit >= datacap_required {
@@ -199,11 +215,14 @@ impl MasterBot {
                        
                         // Re-fetch updated credit for printing
                         if let Some(updated_credit) = self.registry.credits.get(sender) {
-                            info!("📦 SP {} has {} bytes of credit remaining", sender, updated_credit);
+                            info!("💰 SP {} has {} bytes of credit remaining", sender, updated_credit);
                         }
 
                         // Track used CID
                         seen_cids.insert(cid_str);
+
+                        // update allocated datacap
+                        datacap_allocated += metadata.size.0;
                     } else {
                         warn!(
                             "⚠️  SP {} has insufficient credit for allocation. Required: {}, Available: {}",
@@ -220,7 +239,8 @@ impl MasterBot {
 
         // Update registry
         self.registry.save()?;
-        Ok(())
+
+        Ok(datacap_allocated)
     }
 
     /// Burns a portion of the contributed FIL as a protocol fee.

@@ -169,7 +169,7 @@ pub fn resolve_id_address(connection: &Connection, address: &str) -> Result<Acto
 // ----------------------------------
 
 /// Get current verified datacap balance of an address.
-pub fn fetch_datacap_balance(connection: &Connection, address: &str) -> Result<String> {
+pub fn fetch_datacap_balance(connection: &Connection, address: &str) -> Result<u64> {
     let payload = json!({
         "jsonrpc": "2.0",
         "method": "Filecoin.StateVerifiedClientStatus",
@@ -183,7 +183,14 @@ pub fn fetch_datacap_balance(connection: &Connection, address: &str) -> Result<S
         .send()?
         .json::<serde_json::Value>()?;
 
-    Ok(resp["result"].as_str().unwrap_or("0").to_string())
+    let value_str = resp["result"]
+        .as_str()
+        .unwrap_or("0");
+
+    let balance = u64::from_str(value_str)
+        .map_err(|e| anyhow::anyhow!("Failed to parse datacap balance: {}", e))?;
+    
+    Ok(balance)
 }
 
 // ----------------------------------
