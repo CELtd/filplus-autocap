@@ -1,17 +1,25 @@
+use std::env;
+use std::str::FromStr;
+use dotenv::dotenv;
 use anyhow::{Result, anyhow};
 use serde_json::{json, Value};
+use serde::de::DeserializeOwned;
 use fvm_shared::address::Address;
-use filecoin_signer::{key_derive, transaction_sign};
-use fvm_shared::message::Message;
-use std::str::FromStr;
+use fvm_shared::ActorID;
 use fvm_shared::econ::TokenAmount;
+use fvm_shared::message::Message;
 use fvm_ipld_encoding::{RawBytes, to_vec};
+use filecoin_signer::{key_derive, transaction_sign};
 use base64::engine::general_purpose;
 use base64::Engine as _;
-use fvm_shared::ActorID;
-use dotenv::dotenv;
-use std::env;
-use serde::de::DeserializeOwned;
+//use ethers_core::{
+//    abi::{AbiEncode, Token},
+//    types::{Address, U256},
+//};
+//use rlp::RlpStream;
+//use secp256k1::{Message, SecretKey, SECP256K1};
+//use sha3::{Digest, Keccak256};
+//use reqwest::blocking::Client;
 
 
 use crate::wallet::{Wallet};
@@ -380,6 +388,98 @@ pub fn create_datacap_allocation(transfer_params:TransferParams, connection: &Co
 
 }
 
+
+///// Creates and sends a raw transaction calling `addVerifiedClient(bytes,uint256)`
+//pub fn request_datacap(
+//    connection: &Connection,
+//    contract_address: &str,
+//    private_key_hex: &str,
+//    filecoin_client_bytes: Vec<u8>,
+//    datacap_amount: u64,
+//) -> Result<String, Box<dyn std::error::Error>> {
+//
+//    // Convert private key to secret key
+//    let secret_key = SecretKey::from_str(private_key_hex)?;
+//    let public_key = secp256k1::PublicKey::from_secret_key(SECP256K1, &secret_key);
+//    let sender_address = Address::from_slice(&Keccak256::digest(&public_key.serialize_uncompressed()[1..])[12..]);
+//
+//    // Get nonce
+//    let res: Value = connection.client
+//        .post(&connection.rpc_url)
+//        .json(&json!({
+//            "jsonrpc": "2.0",
+//            "id": 1,
+//            "method": "eth_getTransactionCount",
+//            "params": [format!("{:#x}", sender_address), "latest"]
+//        }))
+//        .send()?
+//        .json()?;
+//
+//    let nonce = U256::from_str_radix(res["result"].as_str().unwrap().trim_start_matches("0x"), 16)?;
+//
+//    // Encode calldata for addVerifiedClient(bytes,uint256)
+//    let function_signature = Keccak256::digest(b"addVerifiedClient(bytes,uint256)")[..4].to_vec();
+//    let calldata = [&function_signature[..],
+//        &Token::Bytes(filecoin_client_bytes).encode(),
+//        &Token::Uint(U256::from(datacap_amount)).encode()
+//    ].concat();
+//
+//    // Build transaction fields
+//    let gas_price = U256::from(100_000_000u64); // 100 gwei
+//    let gas_limit = U256::from(5_000_000u64);
+//    let chain_id = 314159u64;
+//    let to_address = Address::from_str(contract_address)?;
+//
+//    // RLP encode tx for signing
+//    let mut stream = RlpStream::new_list(9);
+//    stream.append(&nonce);
+//    stream.append(&0u8); // value
+//    stream.append(&to_address);
+//    stream.append(&U256::zero()); // value
+//    stream.append(&gas_limit);
+//    stream.append(&gas_price);
+//    stream.append(&calldata);
+//    stream.append(&chain_id);
+//    stream.append_empty_data(); // r
+//    stream.append_empty_data(); // s
+//
+//    let tx_hash = Keccak256::digest(&stream.out());
+//    let msg = Message::from_slice(&tx_hash)?;
+//    let sig = SECP256K1.sign_ecdsa_recoverable(&msg, &secret_key);
+//    let (rec_id, sig_bytes) = sig.serialize_compact();
+//    let v = chain_id * 2 + 35 + rec_id.to_i32() as u64;
+//    let r = &sig_bytes[0..32];
+//    let s = &sig_bytes[32..64];
+//
+//    // RLP encode full signed tx
+//    let mut signed = RlpStream::new_list(9);
+//    signed.append(&nonce);
+//    signed.append(&0u8);
+//    signed.append(&to_address);
+//    signed.append(&U256::zero());
+//    signed.append(&gas_limit);
+//    signed.append(&gas_price);
+//    signed.append(&calldata);
+//    signed.append(&v);
+//    signed.append(&U256::from_big_endian(r));
+//    signed.append(&U256::from_big_endian(s));
+//
+//    let raw_tx = format!("0x{}", hex::encode(signed.out().to_vec()));
+//
+//    // Send the raw transaction
+//    let res: Value = client
+//        .post(rpc_url)
+//        .json(&json!({
+//            "jsonrpc": "2.0",
+//            "id": 1,
+//            "method": "eth_sendRawTransaction",
+//            "params": [raw_tx]
+//        }))
+//        .send()?
+//        .json()?;
+//
+//    Ok(res["result"].as_str().unwrap_or("null").to_string())
+//}
 
 // ----------------------------------
 // Helpers

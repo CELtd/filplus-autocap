@@ -9,6 +9,9 @@ pub struct AppConfig {
     pub wallet_file: String,
     pub auction_file: String,
     pub registry_file: String,
+    pub allocator_address_hex: String,
+    pub allocator_private_key: String,
+    pub metallocator_contract_address: String,
 }
 
 /// Loads application configuration from environment variables.
@@ -23,5 +26,9 @@ pub fn load_config() -> Result<AppConfig> {
         wallet_file: env::var("WALLET_FILE")?,
         auction_file: env::var("AUCTION_FILE")?,
         registry_file: env::var("REGISTRY_FILE")?,
+        allocator_address_hex: env::var("ALLOCATOR_ADDRESS_HEX")?,
+        allocator_private_key: env::var("ALLOCATOR_PRIVATE_KEY")?,
+        metallocator_contract_address: env::var("METALLOCATOR_CONTRACT_ADDRESS")?,
+
     })
 }

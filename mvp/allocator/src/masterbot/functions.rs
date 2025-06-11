@@ -79,7 +79,7 @@ impl MasterBot {
         let mut datacap_allocated: u64 = 0;
 
         if self.auction.transactions.is_empty() {
-            info!("ℹ️ No transactions. Skipping auction.");
+            info!("ℹ️  No transactions. Skipping auction.");
         } else {
             // Compute auction datacap rewards
             let (total_fil_auction, rewards) = match self.compute_rewards() {
