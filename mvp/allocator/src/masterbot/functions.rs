@@ -1,12 +1,12 @@
 use std::thread::{sleep};
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{Result, Context};
 use std::collections::HashSet;
 use log::{info, warn, error};
 
 
-use crate::rpc::{get_chain_head_block_number, get_block_info, send_fil_to,  create_datacap_allocation, fetch_datacap_balance};
+use crate::rpc::{get_chain_head_block_number, get_block_info, send_fil_to,  create_datacap_allocation, fetch_datacap_balance, request_datacap};
 use crate::transaction::filter_incoming_txs;
 use crate::auction::{AuctionReward};
 use crate::utils::{format_datacap_size, fil_to_atto_string};
@@ -18,12 +18,12 @@ use crate::masterbot::MasterBot;
 impl MasterBot {
     /// Start the main loop of the MasterBot.
     /// Polls blocks, processes incoming txs, and runs auction rounds every `auction_interval`.
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Result<()> {
         info!("🤖 MasterBot started at block {}", self.last_block);
 
         let mut blocks_left = self.auction_interval;
         let mut first_block = true;
-        //let mut initial_datacap_balance = fetch_datacap_balance(&self.connection, &self.wallet.address).unwrap_or(0);
+
         loop {
             let current_block = get_chain_head_block_number(&self.connection).unwrap_or(self.last_block);
 
@@ -50,6 +50,15 @@ impl MasterBot {
                 let datacap_allocated = self.execute_auction_round().unwrap_or(0);
                 if datacap_allocated > 0 {
                     info!("ℹ️  Masterbot spent {} of DataCap. Requesting {} of DataCap to Allocator", datacap_allocated, datacap_allocated);
+                    let tx_hash = request_datacap(
+                        &self.connection,
+                        &self.metallocator_contract_address,
+                        &self.allocator_private_key,
+                        &hex::decode("01c3c98d44ea0cc6094819ee0735c51b92e8fc9e38")?,
+                        datacap_allocated,
+                    )?;
+
+                    info!("🛰️  DataCap requested. Tx id Eth {}", tx_hash);
                 }
                 blocks_left = self.auction_interval;
             }

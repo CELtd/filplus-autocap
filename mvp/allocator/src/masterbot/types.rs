@@ -32,13 +32,13 @@ pub struct MasterBot {
     pub registry: Registry,
 
     /// Allocator address
-    allocator_address_hex: String,
+    pub allocator_address_hex: String,
 
     /// Allocator private key
-    allocator_private_key: String,
+    pub allocator_private_key: String,
 
     /// Contract Metallocator Address
-    metallocator_contract_address: String,
+    pub metallocator_contract_address: String,
 }
 
 impl MasterBot {

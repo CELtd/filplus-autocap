@@ -21,9 +21,11 @@ multibase = "0.9"
 log = "0.4"
 env_logger = "0.10"
 flexi_logger = "0.27"
-#ethers-core = "2.0"
-#rlp = "0.5"
-#sha3 = "0.10"
+ethers-core = { version = "2.0.14"}
+secp256k1 = { version = "0.27", features = ["recovery"] }
+sha3 = "0.10"
+rlp = "0.5"
+
 
 # The key insight: use fvm_ipld_encoding 0.2.0 which works with cid 0.8.6
 # This way we align with the existing ecosystem instead of fighting it

@@ -1,7 +1,8 @@
 use std::env;
 use std::str::FromStr;
 use dotenv::dotenv;
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, Context};
+use log::warn;
 use serde_json::{json, Value};
 use serde::de::DeserializeOwned;
 use fvm_shared::address::Address;
@@ -12,14 +13,16 @@ use fvm_ipld_encoding::{RawBytes, to_vec};
 use filecoin_signer::{key_derive, transaction_sign};
 use base64::engine::general_purpose;
 use base64::Engine as _;
-//use ethers_core::{
-//    abi::{AbiEncode, Token},
-//    types::{Address, U256},
-//};
-//use rlp::RlpStream;
-//use secp256k1::{Message, SecretKey, SECP256K1};
-//use sha3::{Digest, Keccak256};
-//use reqwest::blocking::Client;
+use ethers_core::abi::{Function, Param, ParamType, StateMutability, Token};
+use secp256k1::{Message as SecpMessage, Secp256k1, SecretKey};
+use sha3::{Digest, Keccak256};
+use rlp::RlpStream;
+use hex;
+
+
+use hex::decode;
+use reqwest::blocking::Client;
+//use ethabi::{Function, Param, ParamType, Token};
 
 
 use crate::wallet::{Wallet};
@@ -389,97 +392,128 @@ pub fn create_datacap_allocation(transfer_params:TransferParams, connection: &Co
 }
 
 
-///// Creates and sends a raw transaction calling `addVerifiedClient(bytes,uint256)`
-//pub fn request_datacap(
-//    connection: &Connection,
-//    contract_address: &str,
-//    private_key_hex: &str,
-//    filecoin_client_bytes: Vec<u8>,
-//    datacap_amount: u64,
-//) -> Result<String, Box<dyn std::error::Error>> {
-//
-//    // Convert private key to secret key
-//    let secret_key = SecretKey::from_str(private_key_hex)?;
-//    let public_key = secp256k1::PublicKey::from_secret_key(SECP256K1, &secret_key);
-//    let sender_address = Address::from_slice(&Keccak256::digest(&public_key.serialize_uncompressed()[1..])[12..]);
-//
-//    // Get nonce
-//    let res: Value = connection.client
-//        .post(&connection.rpc_url)
-//        .json(&json!({
-//            "jsonrpc": "2.0",
-//            "id": 1,
-//            "method": "eth_getTransactionCount",
-//            "params": [format!("{:#x}", sender_address), "latest"]
-//        }))
-//        .send()?
-//        .json()?;
-//
-//    let nonce = U256::from_str_radix(res["result"].as_str().unwrap().trim_start_matches("0x"), 16)?;
-//
-//    // Encode calldata for addVerifiedClient(bytes,uint256)
-//    let function_signature = Keccak256::digest(b"addVerifiedClient(bytes,uint256)")[..4].to_vec();
-//    let calldata = [&function_signature[..],
-//        &Token::Bytes(filecoin_client_bytes).encode(),
-//        &Token::Uint(U256::from(datacap_amount)).encode()
-//    ].concat();
-//
-//    // Build transaction fields
-//    let gas_price = U256::from(100_000_000u64); // 100 gwei
-//    let gas_limit = U256::from(5_000_000u64);
-//    let chain_id = 314159u64;
-//    let to_address = Address::from_str(contract_address)?;
-//
-//    // RLP encode tx for signing
-//    let mut stream = RlpStream::new_list(9);
-//    stream.append(&nonce);
-//    stream.append(&0u8); // value
-//    stream.append(&to_address);
-//    stream.append(&U256::zero()); // value
-//    stream.append(&gas_limit);
-//    stream.append(&gas_price);
-//    stream.append(&calldata);
-//    stream.append(&chain_id);
-//    stream.append_empty_data(); // r
-//    stream.append_empty_data(); // s
-//
-//    let tx_hash = Keccak256::digest(&stream.out());
-//    let msg = Message::from_slice(&tx_hash)?;
-//    let sig = SECP256K1.sign_ecdsa_recoverable(&msg, &secret_key);
-//    let (rec_id, sig_bytes) = sig.serialize_compact();
-//    let v = chain_id * 2 + 35 + rec_id.to_i32() as u64;
-//    let r = &sig_bytes[0..32];
-//    let s = &sig_bytes[32..64];
-//
-//    // RLP encode full signed tx
-//    let mut signed = RlpStream::new_list(9);
-//    signed.append(&nonce);
-//    signed.append(&0u8);
-//    signed.append(&to_address);
-//    signed.append(&U256::zero());
-//    signed.append(&gas_limit);
-//    signed.append(&gas_price);
-//    signed.append(&calldata);
-//    signed.append(&v);
-//    signed.append(&U256::from_big_endian(r));
-//    signed.append(&U256::from_big_endian(s));
-//
-//    let raw_tx = format!("0x{}", hex::encode(signed.out().to_vec()));
-//
-//    // Send the raw transaction
-//    let res: Value = client
-//        .post(rpc_url)
-//        .json(&json!({
-//            "jsonrpc": "2.0",
-//            "id": 1,
-//            "method": "eth_sendRawTransaction",
-//            "params": [raw_tx]
-//        }))
-//        .send()?
-//        .json()?;
-//
-//    Ok(res["result"].as_str().unwrap_or("null").to_string())
-//}
+pub fn get_chain_id(connection: &Connection) -> Result<u64> {
+
+    let response: serde_json::Value = connection.client
+        .post(&connection.rpc_url)
+        .json(&json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "eth_chainId",
+            "params": []
+        }))
+        .send()?
+        .json()?;
+
+    let hex_chain_id = response["result"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("Missing chainId in response"))?;
+
+    let chain_id = u64::from_str_radix(hex_chain_id.trim_start_matches("0x"), 16)?;
+    Ok(chain_id)
+}
+
+// Requests minting datacap in our masterbot client wallet from the metallocator contract subtracting allowance from our allcator wallet
+pub fn request_datacap(
+    connection: &Connection,
+    contract_address: &str,
+    private_key_hex: &str,
+    client_bytes: &[u8],
+    datacap: u64,
+) -> Result<String> {
+    // Setup keys
+    let secp = Secp256k1::new();
+    let private_key = SecretKey::from_str(private_key_hex.strip_prefix("0x").unwrap_or(private_key_hex))?;
+    let public_key = secp256k1::PublicKey::from_secret_key(&secp, &private_key);
+    let sender = &Keccak256::digest(&public_key.serialize_uncompressed()[1..])[12..]; // 20 bytes
+
+    // Get nonce
+    let nonce_resp: serde_json::Value = connection.client
+        .post(&connection.rpc_url)
+        .json(&json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "eth_getTransactionCount",
+            "params": [format!("0x{}", hex::encode(sender)), "latest"]
+        }))
+        .send()?
+        .json()?;
+
+    let nonce = u64::from_str_radix(nonce_resp["result"].as_str().unwrap().trim_start_matches("0x"), 16)?;
+
+    // Encode ABI calldata for addVerifiedClient(bytes,uint256)
+    let calldata = {
+        let func = Function {
+            name: "addVerifiedClient".to_string(),
+            inputs: vec![
+                Param { name: "client".into(), kind: ParamType::Bytes, internal_type: None },
+                Param { name: "datacap".into(), kind: ParamType::Uint(256), internal_type: None },
+            ],
+            outputs: vec![],
+            state_mutability: StateMutability::NonPayable,
+            constant: None,
+        };
+        func.encode_input(&[
+            Token::Bytes(client_bytes.to_vec()),
+            Token::Uint(datacap.into())
+        ])?
+    };
+
+    // Gas & fee
+    let gas_limit = 30_000_000u64;
+    let gas_price = 100_000_000u64;
+    let chain_id = get_chain_id(connection)?; // assumes `get_chain_id` returns u64
+
+    // Decode recipient address
+    let to = hex::decode(contract_address.strip_prefix("0x").unwrap_or(contract_address))?;
+
+    // Create RLP for signing
+    let mut rlp = RlpStream::new_list(9);
+    rlp.append(&nonce);
+    rlp.append(&gas_price);
+    rlp.append(&gas_limit);
+    rlp.append(&to);
+    rlp.append(&0u8); // value
+    rlp.append(&calldata);
+    rlp.append(&chain_id);
+    rlp.append(&0u8); // r
+    rlp.append(&0u8); // s
+
+    // Sign transaction hash
+    let hash = Keccak256::digest(&rlp.out());
+    let msg = SecpMessage::from_slice(&hash)?;
+    let sig = secp.sign_ecdsa_recoverable(&msg, &private_key);
+    let (rec_id, sig_bytes) = sig.serialize_compact();
+    let v = chain_id * 2 + 35 + rec_id.to_i32() as u64;
+
+    // RLP encode final transaction
+    let mut final_rlp = RlpStream::new_list(9);
+    final_rlp.append(&nonce);
+    final_rlp.append(&gas_price);
+    final_rlp.append(&gas_limit);
+    final_rlp.append(&to);
+    final_rlp.append(&0u8); // value
+    final_rlp.append(&calldata);
+    final_rlp.append(&v);
+    final_rlp.append(&&sig_bytes[0..32]);
+    final_rlp.append(&&sig_bytes[32..64]);
+
+    let raw_tx = format!("0x{}", hex::encode(final_rlp.out()));
+
+    // Send the raw transaction
+    let res: serde_json::Value = connection.client
+        .post(&connection.rpc_url)
+        .json(&json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "eth_sendRawTransaction",
+            "params": [raw_tx]
+        }))
+        .send()?
+        .json()?;
+
+    Ok(res["result"].as_str().unwrap_or("null").to_string())
+}
 
 // ----------------------------------
 // Helpers
@@ -569,4 +603,25 @@ pub fn call_rpc<T: DeserializeOwned>(
         let typed = serde_json::from_value(result.clone())?;
         Ok(typed)
     }
+}
+
+
+fn encode_add_verified_client(client_bytes: &[u8], datacap: u64) -> Vec<u8> {
+    let func = Function {
+        name: "addVerifiedClient".to_string(),
+        inputs: vec![
+            Param { name: "client".to_string(), kind: ParamType::Bytes, internal_type: None },
+            Param { name: "datacap".to_string(), kind: ParamType::Uint(256), internal_type: None },
+        ],
+        outputs: vec![],
+        constant: None,
+        state_mutability: ethers_core::abi::StateMutability::NonPayable,
+    };
+
+    let tokens = vec![
+        Token::Bytes(client_bytes.to_vec()),
+        Token::Uint(datacap.into()),
+    ];
+
+    func.encode_input(&tokens).expect("abi encode failed")
 }
