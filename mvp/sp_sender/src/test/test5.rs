@@ -37,9 +37,9 @@ pub fn run(connection: &Connection) -> Result<()> {
         provider: 1000,
         data: cid,
         size: PaddedPieceSize(1 << 10),
-        term_min: 100,
-        term_max: 200,
-        expiration: 500,
+        term_min: 518_400,
+        term_max: 2 * 518_400,
+        expiration: 2880,
     };
 
     let cbor_bytes = serde_cbor::to_vec(&metadata)?;

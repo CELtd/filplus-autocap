@@ -26,6 +26,7 @@ pub fn craft_operator_data(
     padded_size: &u64,
     term_min: &i64,
     term_max: &i64,
+    expiraton: &i64,
     current_epoch: &u64,
 ) -> Result<RawBytes> {
     let piece_cid = Cid::try_from(piece_cid_str)?;
@@ -35,11 +36,9 @@ pub fn craft_operator_data(
         provider: provider.parse()?,
         data: piece_cid,
         size: PaddedPieceSize(*padded_size),
-        //term_min: *term_min,
-        //term_max: *term_max,
-        term_min: 518_400,                 // TODO: use actual value instead of hardcoded (6 months)
-        term_max: 2 * 518_400,             // TODO: use actual value instead of hardcoded (12 months)
-        expiration: *current_epoch as i64 + 1 * EPOCHS_PER_DAY, // TODO: calculate based on term
+        term_min: *term_min,
+        term_max: *term_max,
+        expiration: *current_epoch as i64 + *expiraton, // TODO: is it correct?
     };
 
     // Wrap in AllocationRequests
@@ -83,9 +82,10 @@ pub fn craft_transfer_from_payload(
     padded_size: &u64,
     term_min: &i64,
     term_max: &i64,
+    expiration: &i64,
     current_epoch: &u64,
     datacap_amount: &str,
 ) -> Result<TransferParams> {
-    let operator_data = craft_operator_data(provider_addr, piece_cid_str, padded_size, term_min, term_max, current_epoch)?;
+    let operator_data = craft_operator_data(provider_addr, piece_cid_str, padded_size, term_min, term_max, expiration, current_epoch)?;
     craft_transfer_params(datacap_amount, operator_data)
 }

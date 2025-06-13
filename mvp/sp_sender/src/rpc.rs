@@ -216,7 +216,7 @@ pub fn send_metadata_tx(
     let nonce = fetch_nonce(connection, &wallet.address)?;
 
     // === Estimate gas_premium ===
-    let gas_limit = 1_362_763 ;
+    let gas_limit = 10_000_000 ;
 
     let gas_premium: String = call_rpc(
         connection,

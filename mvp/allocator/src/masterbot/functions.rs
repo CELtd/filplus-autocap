@@ -211,6 +211,7 @@ impl MasterBot {
                             &datacap_required,
                             &metadata.term_min,
                             &metadata.term_max,
+                            &metadata.expiration,
                             &self.last_auction_block,
                             &metadata.size.0.to_string(),
                         )?;
