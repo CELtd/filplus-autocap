@@ -27,13 +27,14 @@ SP compete with each other to gain a part of this stake.
 ### How?
 1. Each SP sends a tx in FIL to the allocator wallet.  
   In each tx, the SP needs to encode in the `params` field the metadata referring to a specific deal (unverified) that they will need to seal.  
-2. At theend of each auction round, each SP is rewarded an amount of datacap from the total stake, proportional to the total contribution in FIL that the SP had during the auction (e.g. SP1 sent 1 FIL and the total FIL contribution in the auction round is 2 FIL, then the SP1 receives 50% of the DataCap at stake).
+2. At the end of each auction round, each SP is rewarded an amount of datacap from the total stake, proportional to the total contribution in FIL that the SP had during the auction.
+  E.g. SP1 sent 1 FIL and the total FIL contribution in the auction round is 2 FIL, then the SP1 receives 50% of the DataCap at stake).
 
 3. The DataCap won by each SP in each round is added to the DataCap credit of each SP.
   At the end of each auction round, after redistribution of the DataCap prize to each SP credit, the allocator generates the allocations.
   In particular:
   - If the `piece_size` of the deal that the SP needs to seal is larger than the SP current credit, nothing happens;
-  - If the `piece_size` is smaller than the SP current credit, the allocator creates an allocation of DataCap of size `piece_size` in the `verifreg` onchain actor, specifying the metadata passed by the SP during the tx in step 1.
+  - If the `piece_size` is smaller or equal than the SP current credit, the allocator creates an allocation of DataCap of size `piece_size` in the `verifreg` onchain actor, specifying the metadata passed by the SP during the tx in step 1.
 
 4. When the SP seals the deal can now claim the power from the `verifreg` actor and the DataCap is burned.
 
