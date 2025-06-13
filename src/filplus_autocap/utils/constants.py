@@ -1,4 +1,0 @@
-GAS_PRICE = 0.0 #FIL
-FILECOIN_ADDRESS = "f_filecoin"
-VERIFIED_SP_FILE = "data/verified_sp_list.json" 
-DATACAP_MAX_ISSUANCE = 1000000

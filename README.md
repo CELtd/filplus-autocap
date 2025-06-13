@@ -1,17 +1,5 @@
 # FIL+ Autocap
-> ⚠️ **Disclaimer:** This repository is a **research prototype** designed to **simulate and experiment with auction logics** for programmable datacap allocation in the Filecoin Plus (FIL+) system.  
-> It is **not intended to reflect the precise mechanics of Filecoin on-chain smart contracts**, but instead provides a simplified framework to test variations in:
->
-> - Datacap allocation algorithms
-> - Fee schemes
-> - Burn strategies
-> - Other incentive design parameters
->
-> The goal is to explore and evaluate how different configurations might impact SP behavior, efficiency, and system robustness under real-world-like constraints.
-> The **possible smart contract architecture** that this simulation is loosely based on can be found here:  
-> 👉 [https://hackmd.io/T3cgceZaTdipgx0g32BB0Q](https://hackmd.io/T3cgceZaTdipgx0g32BB0Q)
-
-
+> 🚧 **Note**: This is a work-in-progress MVP.
 
 **FIL+ Autocap** is a programmable allocator for [Filecoin Plus (FIL+)](https://docs.filecoin.io/basics/how-storage-works/filecoin-plus), designed to automatically distribute datacap to Storage Providers (SPs) based on on-chain deal revenue — without human intervention.
 
@@ -76,124 +64,27 @@ This fee structure serves as a critical economic deterrent against wash trading.
 
 ## Getting Started
 
-### Requirements
+### Prerequisites
 
-- Python 3.10+
-- [Poetry](https://python-poetry.org/)
+- Rust (latest stable)  
+  Install via [rustup.rs](https://rustup.rs)
+- Lotus full node (devnet or testnet)
+- `.env` file with config for RPC and keys
 
-### Installation
+### Build
 
 ```bash
 # Clone the repo
 git clone https://github.com/<your-org>/filplus-autocap.git
 cd filplus-autocap
 
-# Install dependencies
-poetry install
+# Build the project
+cargo build
 ```
-
----
-
-## How It Works
-
-Once installed, you can start a test auction using the built-in CLI interface:
 
 ```bash
-poetry run test-auction
+cargo run
 ```
-
-This command starts the `MasterBot`, which triggers periodic auction rounds based on the settings in `config/setup.json`.
-
-While the system runs, you'll interact with it via terminal commands:
-
-```text
-Enter command (register, declare, exit):
-```
-
-### Commands
-
-#### `register`
-
-Registers a new Storage Provider (SP) to the system.
-
-You'll be prompted to provide:
-
-- SP address  
-- Owner address  
-- Initial FIL balance
-
-Example:
-```text
-Enter command (register, declare, exit): register
-Enter SP address: sp1
-Enter SP owner: sp1
-Enter SP FIL balance: 100
-```
-
-The SP is then added to `data/verified_sp_list.json`.
-
-#### `declare`
-
-Used to declare deal revenue sent by a known SP to the protocol:
-
-```text
-Enter command (register, declare, exit): declare
-Enter SP address: sp1
-Enter revenue amount (FIL): 10
-```
-
-This will simulate a transaction from the SP to the protocol wallet, and the revenue will be considered in the next auction round.
-
-#### `exit`
-
-Stops the program.
-
----
-
-## Auction Rounds
-
-The `MasterBot` executes auction rounds at regular intervals. These parameters are configured in:
-
-- `config/setup.json`:
-  - `auction_duration`: Duration of a tick in seconds
-  - `auction_fee`: Percentage of declared revenue to burn
-  - `datacap_per_round`: Datacap to distribute each round
-
-Auction execution is fully logged in `data/masterbot.log`. The log includes:
-
-- Epoch ticks
-- SP registration events
-- Declared transactions
-- Auction rounds (start, state, final allocation)
-
-Example log excerpt:
-
-```text
-2025-04-16 15:30:26,320 - 🛰️ EVENT DETECTED: SP registration TX: <Transaction from=sp1 ...>
-2025-04-16 15:30:28,558 - 🤖 MasterBot 🚀 Executing auction round number 0
-2025-04-16 15:30:28,558 - 🤖 MasterBot 📦 Wallet Balances at the start: ...
-2025-04-16 15:30:28,559 - 🤖 MasterBot 📊 RevenueBot Auction State:
-2025-04-16 15:30:28,559 - ✅ No active contributors. Auction cleared.
-```
-
----
-
-## Project Structure
-
-- `contracts/bots/` — Core logic for the allocator and its components (`master_bot.py`, `revenue_bot.py`, etc.)
-- `blockchain_utils/` — Simplified blockchain abstractions (wallets, transactions, Filecoin simulation)
-- `utils/` — Configuration and setup scripts
-
----
-
-## Documentation
-
-- [`docs/mathematical_analysis.md`](docs/mathematical_analysis.md) — Synthesis of a detailed mathematical analysis exploring the incentives for SP participation and the conditions under which honest reporting of deal revenue is encouraged.
-- [`docs/possible_smart_contracts_architecture.md`](docs/possible_smart_contracts_architecture.md) — Proposed architecture for implementing the system using smart contracts.
-- [`docs/python/package.md`](docs/python/package.md) — Technical documentation of the Python implementation, including package structure, core modules, and developer guide.
-
-
----
 
 ## Contributing
 

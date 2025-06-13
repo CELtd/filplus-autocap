@@ -39,26 +39,23 @@ htmlcov/
 # Logs
 *.log
 
-# Local test data
-data/
-output/
-
 # Rust MVP Allocator
-mvp/allocator/target
-mvp/allocator/.env
-mvp/allocator/.wallet.json
-mvp/allocator/.auction.json
-mvp/allocator/.registry.json
-mvp/allocator/.private
-mvp/allocator/Cargo.lock
-mvp/allocator/lotus_wallet.key
-mvp/allocator/logs
+target
+.env
+.wallet.json
+.auction.json
+.registry.json
+.private/
+Cargo.lock
+lotus_wallet.key
+logs
 
 # Rust MVP SP client
-mvp/sp_sender/target
-mvp/sp_sender/.env
-mvp/sp_sender/.wallet.json
-mvp/sp_sender/.auction.json
-mvp/sp_sender/.registry.json
-mvp/sp_sender/.private
-mvp/sp_sender/Cargo.lock
+tests/sp_sender/target
+tests/sp_sender/.env
+tests/sp_sender/.wallet.json
+tests/sp_sender/.auction.json
+tests/sp_sender/.registry.json
+tests/sp_sender/.private
+tests/sp_sender/Cargo.lock
+tests/sp_sender/fund_wallets.sh
