@@ -1,7 +1,4 @@
 use crate::{
-    wallet::load_or_create_wallet,
-    rpc::{Connection, fetch_balance, fetch_datacap_balance, get_chain_head_block_number},
-    utils::format_datacap_size,
     masterbot::MasterBot,
     runtime::config::AppConfig,
 };

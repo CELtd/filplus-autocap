@@ -11,8 +11,22 @@ pub struct Metadata {
     pub term_max: ChainEpoch,
     pub expiration: ChainEpoch,
 }
+impl From<MetadataDisplay> for Metadata {
+    fn from(display: MetadataDisplay) -> Self {
+        Metadata {
+            provider: display.provider,
+            data: Cid::try_from(display.data.as_str())
+                .expect("Invalid CID in display metadata"),
+            size: PaddedPieceSize(display.size),
+            term_min: display.term_min,
+            term_max: display.term_max,
+            expiration: display.expiration,
+        }
+    }
+}
 
-#[derive(Debug, Serialize)]
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MetadataDisplay {
     pub provider: u64,
     pub data: String,

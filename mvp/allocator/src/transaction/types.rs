@@ -15,9 +15,23 @@ pub struct Transaction {
     pub block_number: u64,
     pub metadata: Option<Metadata>, // Parsed CBOR metadata (raw form)
 }
+impl From<TransactionDisplay> for Transaction {
+    fn from(display: TransactionDisplay) -> Self {
+        Transaction {
+            cid: display.cid,
+            from: display.from,
+            to: display.to,
+            value_fil: display.value_fil,
+            block_number: display.block_number,
+            metadata: display
+                .metadata
+                .map(Metadata::from),
+        }
+    }
+}
 
 /// Human-friendly version of a transaction for output/logging.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TransactionDisplay {
     pub cid: String,
     pub from: String,

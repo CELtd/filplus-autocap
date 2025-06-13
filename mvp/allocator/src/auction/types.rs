@@ -11,8 +11,23 @@ pub struct Auction {
     pub file_path: String,
 }
 
+impl From<AuctionDisplay> for Auction {
+    fn from(display: AuctionDisplay) -> Self {
+        Auction {
+            block_number: display.block_number,
+            transactions: display
+                .transactions
+                .into_iter()
+                .map(Transaction::from)
+                .collect(),
+            file_path: String::new(), // To be filled in later manually
+        }
+    }
+}
+
+
 /// A display-friendly version of Auction, for serialization purposes only.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AuctionDisplay {
     pub block_number: u64,
     pub transactions: Vec<TransactionDisplay>,
