@@ -9,6 +9,10 @@ pub mod datacap_actor{
     pub const DATACAP_TRANSFER_FUNCTION_ID: u64 = 80475954; 
 }
 
+pub mod verifreg_actor{
+    pub const VERIFREG_ACTOR_ID: u64 = 6;
+}
+
 // Bot constants
 pub mod bot {
     pub const BURN_FEE: f64 = 0.50;

@@ -6,7 +6,7 @@ use fvm_shared::econ::TokenAmount;
 use fvm_shared::piece::PaddedPieceSize;
 use cid::Cid;
 
-use crate::constants::filecoin::EPOCHS_PER_DAY;
+use crate::constants::verifreg_actor::VERIFREG_ACTOR_ID;
 use crate::allocation::types::{AllocationRequest, AllocationRequests, TransferParams};
 
 /// Constructs the operator data payload (CBOR-encoded) needed for the `transfer_from`
@@ -65,7 +65,7 @@ pub fn craft_transfer_params(
     let scaled = bytes * 1_000_000_000_000_000_000u128;
 
     Ok(TransferParams {
-        to: Address::new_id(6), // Verified Registry actor ID (f06)
+        to: Address::new_id(VERIFREG_ACTOR_ID), // Verified Registry actor ID (f06)
         amount: TokenAmount::from_atto(scaled),
         operator_data: allocation_data,
     })
