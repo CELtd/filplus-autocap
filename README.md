@@ -9,7 +9,7 @@ This approach rewards SPs who generate real paid deals and helps reduce reliance
 
 ## Motivation
 
-The current FIL+ system requires human oversight and often favors retrievable, open data — creating barriers for real-world clients with private or confidential data.
+The current FIL+ system requires human oversight and often favors retrievable, open data, creating barriers for real-world clients with private or confidential data.
 
 **FIL+ Autocap** aims to:
 
