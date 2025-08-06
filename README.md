@@ -27,7 +27,8 @@ Fees are partially burned to accrue value in the Filecoin economy.
 Thus, the FIL+ Autocap distributes datacap to eligible Storage Providers (SPs) in rounds. 
 Eligible storage providers are SPs that:
 - Have a paid on-chain deal;
-- Paid a fee to the Autocap proportional to the payment of the on-chain deal. 
+- Paid a fee to the Autocap proportional to the payment of the on-chain deal.
+  
 Each round, eligible SPs receive Datacap, proportional to their share of the total fee collected by Autocap during that round. 
 The larger the revenue the SP had from a on-chain deal with a client, the larger the fee that the SP issues to the allocator, and the larger the likelihood of winning more DataCap. 
 Since the contribution the SP made is  never retrieved from the SP, and the DataCap received depends on the competition with the other SPs (the price of DataCap is dependent on the current state of the competition in the round) the cost of engaging with the SP needs to be backed by a real economic income from a paying client. 
