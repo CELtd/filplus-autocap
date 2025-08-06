@@ -26,7 +26,7 @@ SP compete with each other to gain a part of this stake.
 
 ### How?
 1. Each SP sends a tx in FIL to the allocator wallet.  
-  In each tx, the SP needs to encode in the `params` field the metadata referring to a specific deal (unverified) that they will need to seal.  
+  In each tx, the SP needs to encode in the `params` field the metadata referring to a specific on-chain deal that they will need to seal.  
 2. At the end of each auction round, each SP is rewarded an amount of datacap from the total stake, proportional to the total contribution in FIL that the SP had during the auction.
   E.g. SP1 sent 1 FIL and the total FIL contribution in the auction round is 2 FIL, then the SP1 receives 50% of the DataCap at stake).
 
@@ -50,29 +50,39 @@ SP compete with each other to gain a part of this stake.
 ### Mathematical Framework
 
 #### Datacap Allocation Mechanism
-The FIL+ Autocap distributes datacap to Storage Providers (SPs) proportionally to their contribution in FIL. This contribution acts as a proxy measure of the deal revenue of the SP. Thus, in the following, we call `declared deal revenue` the payment of an SP to the allocator. The larger the revenue the SP had from a unverified deal with a client, the larger can be the payment that the SP issues to the allocator and the larger is the likelyhood of winning more DataCap. Since the contribution the SP made is  never retireved from the SP, and the DataCap received depends on the competition with the other SPs (the price of DataCap is dependent on the current state of the competition in the auction) the cost of engaging with the SP needs to be backed by a real economic income from a paying client. 
+Storage Providers (SP) that made an on-chain paid deal with a client can request AutoCap for QAP reward for sealing such a deal upon payment of a fee. 
+This fee is proportional to the on-chain deal payment and is known in advance to the SP, which can therefore pass it on to the client. 
+Fees are partially burned to accrue value in the Filecoin economy.
+
+Thus, the FIL+ Autocap distributes datacap to eligible Storage Providers (SPs) in rounds. 
+Eligible storage providers are SPs that:
+- Have a paid on-chain deal;
+- Paid a fee to the Autocap proportional to the payment of the on-chain deal. 
+Each round, eligible SPs receive Datacap, proportional to their share of the total fee collected by Autocap during that round. 
+The larger the revenue the SP had from a on-chain deal with a client, the larger the fee that the SP issues to the allocator, and the larger the likelihood of winning more DataCap. 
+Since the contribution the SP made is  never retrieved from the SP, and the DataCap received depends on the competition with the other SPs (the price of DataCap is dependent on the current state of the competition in the round) the cost of engaging with the SP needs to be backed by a real economic income from a paying client. 
 
 The mathematical model that powers this allocation is designed to:
-1. Reward SPs who generate real economic value through storage deals
+1. Reward SPs who generate real economic value through on-chain storage deals
 2. Create incentives for honest revenue reporting
 3. Balance short-term and long-term participation benefits
 
 #### Core Allocation Formula
-For each auction round datacap is issued to the SPs:
+For each round, datacap is issued to the SPs:
 
 $$D_i(r_i) = d \cdot \frac{r_i}{\sum_j r_j}$$
 
 Where:
 - $D_i$ is the amount of datacap issued to the i-th SP
-- $r_i$ is the declared deal revenue by the i-th SP
+- $r_i$ is the fee paid by the i-th SP
 - $d$ is the total datacap issued each round
-- $\sum_j r_j$ is the total declared deal revenue from all participating SPs
+- $\sum_j r_j$ is the total fee collected from all participating SPs
 
 #### Fee Mechanism
-Each SP pays a the allocator a fee `r`, which is a proxy of their real revenue `R`:
+Each SP pays the allocator a fee `r_i`, which is a proxy of their real revenue `R`:
 $$r_i = \gamma \cdot R_i$$
 
-Where $\gamma$ is the fee rate parameter. A portion of the total contribution from the SPs is burned, while the remainder is redirected to a protocol-owned wallet designated for ecosystem sustainability, ongoing development, and governance operations.
+Where $\gamma$ is the fee rate parameter, a portion of the total contribution from the SPs is burned, while the remainder is redirected to a protocol-owned wallet designated for ecosystem sustainability, ongoing development, and governance operations.
 
 This fee structure serves as a critical economic deterrent against wash trading. Since higher declared revenues result in more datacap allocation but also incur larger fees, only SPs with genuine revenue from real user deals can sustainably participate. This creates a natural equilibrium where:
 
