@@ -90,7 +90,7 @@ sequenceDiagram
 
 ### Stage 1: Deal creation & Publication
 
-Standard Filecoin paid-deal flow:
+Standard Filecoin paid-deal flow through f05 deals:
 
 1. Client and SP negotiate a deal.
 2. SP publishes the deal on-chain (`PublishStorageDeal`).
@@ -131,9 +131,10 @@ Invalid tickets → fee burned.
 ### Stage 3: Round Termination & DataCap Allocation
 
 Rounds occur every **x blocks**.
+
 ⚠️ **Note**: x is yet to be defined.
 
-At the round end, Autocap distributes a **fixed DataCap prize `D`** across valid tickets:
+At the round end, Autocap distributes a **fixed DataCap amount `D`** across valid tickets:
 
 $$dc_i = D \cdot \frac{Fee_i}{\sum_j Fee_j}$$
 
@@ -141,10 +142,10 @@ Where:
 
 * $dc_i$ = DataCap to `DC wallet` of i-th valid `ticket`
 * $Fee_i$ = fee paid in FIL by that ticket
-* $D$ = DataCap prize issued each round
+* $D$ = DataCap amount minted each round
 * $\sum_j Fee_j$ = total fees in round
 
-**Plain English:** if 10 tickets each paid 10 FIL, each `DC Wallet` gets 10% of the DataCap prize.
+**Plain English:** if 10 tickets each paid 10 FIL, each `DC Wallet` gets 10% of the DataCap minted in that round.
 
 Autocap mints DataCap via the [Metallocator](https://github.com/fidlabs/contract-metaallocator) using `AddVerifiedClient`.
 
