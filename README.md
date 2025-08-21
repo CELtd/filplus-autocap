@@ -1,5 +1,5 @@
 # FIL+ Autocap
-> 🚧 **Note**: This is a work-in-progress MVP.
+> 🚧 **Note**: Autocap is under architectural update, [**read the new architecture here**](https://github.com/CELtd/filplus-autocap/blob/new_architecture/docs/SCHEME.md)
 
 **FIL+ Autocap** is a programmable allocator for [Filecoin Plus (FIL+)](https://docs.filecoin.io/basics/how-storage-works/filecoin-plus), designed to automatically distribute datacap to Storage Providers (SPs) based on on-chain deal revenue, without human intervention.
 
@@ -19,41 +19,7 @@ The current FIL+ system requires human oversight and often favors retrievable, o
 ---
 
 ## Mechanism overview
-> 🚧 **Note**: Autocap is under architectural update
-
-[**Read the new architecture here**]()
-
-
-## Getting Started
-
-### Prerequisites
-
-- Rust (latest stable)  
-  Install via [rustup.rs](https://rustup.rs)
-- Lotus full node (devnet or testnet)
-- `.env` file with config for RPC and keys
-
-### Build
-
-```bash
-# Clone the repo
-git clone https://github.com/<your-org>/filplus-autocap.git
-cd filplus-autocap
-
-# Build the project
-cargo build
-```
-
-```bash
-cargo run
-```
-
-## Contributing
-
-We welcome feedback, use cases, and pull requests.  
-To propose changes or extensions, please open an issue or submit a PR.
-
----
+> 🚧 **Note**: Autocap is under architectural update, [**read the new architecture here**](https://github.com/CELtd/filplus-autocap/blob/new_architecture/docs/SCHEME.md)
 
 ## License
 
