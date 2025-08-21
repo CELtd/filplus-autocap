@@ -1,4 +1,4 @@
-# Alternative Autocap Architecture
+# New Autocap Architecture
 
 ## What is Autocap
 
