@@ -57,7 +57,7 @@ sequenceDiagram
   Market -->> SP: 6. Deal activated (ID: 12345, State: Active)
 
   Note over SP, Autocap: Stage 2: Ticket Submission & Verification
-  SP ->> Autocap: 7. Sumbit ticket: Send fee + encoded metadata (Deal ID, DC Wallet)
+  SP ->> Autocap: 7. Submit ticket: Send fee + encoded metadata (Deal ID, DC Wallet)
   Autocap ->> Market: 8. Query deal on-chain
   Market -->> Autocap: 9. Return deal details (status: Active ✓)
   Autocap ->> Autocap: 10. Validate ticket (fee %, uniqueness, provider match, DC wallet)
