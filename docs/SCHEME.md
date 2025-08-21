@@ -7,8 +7,12 @@ A mechanism to:
 * **Reward Storage Providers (SPs) that brought *paid deals* on-chain**
 * **Accrue value in the Filecoin economy** from *on-chain paid deals*
 
-## How it works: High-level overview
-* `Autocap` issues a fixed amount of **DataCap** at fixed time intervals called *rounds*.
+## How it works: high-level overview
+`Autocap` issues a fixed amount of **DataCap** at fixed time intervals called *rounds*.
+During each round, there are two phases and four stages:
+- **Phase 1** - Deal Creation (Stage 1), Ticket Submission and Verification (Stage 2);
+- **Phase 2** - DC Allocation (Stage 3) and Fee Burning (Stage 4).
+#### Phase 1 - Deal Creation, Ticket Submission and Verification Phase
 * An `SP` with an *active on-chain paid deal* submits a `ticket`.
   A **ticket** is simply a FIL transaction to `Autocap` whose `params` encode:
   * the deal ID,
@@ -20,33 +24,30 @@ A mechanism to:
   * the deal is active;
   * the deal provider matches the SP submitting the ticket.
 * If these conditions are met, the ticket is valid and the SP is eligible for a DataCap reward at the end of the round.
-* At the end of each round, Autocap distributes the DataCap prize proportionally to fees contributed:
+#### Phase 2 - DC Allocation and Fee Burning Phase
+* At the end of each round, Autocap distributes the DataCap rewards proportionally to fees contributed:
   > Higher *on-chain deal payment* → Higher fee → Higher share of the DataCap reward.
-* Autocap mints (via the FIDL Metallocator) the DataCap reward into the `DC Wallet` specified in the ticket.
+* For each ticket, Autocap mints (via the FIDL Metallocator) the DataCap reward into the `DC Wallet` specified in the ticket.
 * Autocap burns a portion of collected fees, recirculating value into the Filecoin economy.
 
-Self-dealing is disincentivized:
-* SPs with real paying clients can offset the cost by passing it on to clients.
-* SPs doing self-deals must bear the full cost themselves.
-## Key Actors
+---
+## Key Actors and working flow
 
 * **Data Client**: the client storing data.
 * **Storage Provider (SP)**: makes the deal and engages with Autocap paying and sumbitting the tickets.
 * **DataCap Wallet**: wallet where Autocap mints allocated DataCap.
 * **Autocap**: the automatic allocator.
 * **Metallocator**: [FIDL contract Metallocator](https://github.com/fidlabs/contract-metaallocator), acting as the RKH for this experiment.
-
 ---
 
-## Diagram – Phase 1 & 2 (Deal + Ticket)
-
+### Phase 1 - Deal Creation, Ticket Submission and Verification
 ```mermaid
 sequenceDiagram
   actor Client as Real Deal Client
   actor SP as Storage Provider
   participant Market as Market Actor
   participant Autocap as Autocap
-  Note over Client, Market: Phase 1: Deal Creation & Publication
+  Note over Client, Market: Stage 1: Deal Creation & Publication
 
   Client <<->> SP: 1. Negotiate storage deal
   SP ->> Market: 2. Publish Storage Deal
@@ -55,8 +56,7 @@ sequenceDiagram
   SP ->> Market: 5. Prove commit
   Market -->> SP: 6. Deal activated (ID: 12345, State: Active)
 
-  Note over SP, Autocap: Phase 2: Ticket Payment & Verification
-
+  Note over SP, Autocap: Stage 2: Ticket Submission & Verification
   SP ->> Autocap: 7. Sumbit ticket: Send fee + encoded metadata (Deal ID, DC Wallet)
   Autocap ->> Market: 8. Query deal on-chain
   Market -->> Autocap: 9. Return deal details (status: Active ✓)
@@ -66,7 +66,7 @@ sequenceDiagram
 
 ---
 
-## Diagram – Phase 3 & 4 (Round + Mint + Burn)
+### Phase 2 - DC Allocation and Fee Burning
 
 ```mermaid
 sequenceDiagram
@@ -74,21 +74,21 @@ sequenceDiagram
   participant Datacap as Metallocator (FIDL)
   actor DCWallet as DataCap Wallet
   loop Round (e.g. every day)
-  Note over Autocap,DCWallet: Phase 3: Round Processing & DataCap Distribution
+  Note over Autocap,DCWallet: Stage 3: Round Termination & DataCap Allocation
 
   Autocap ->> Autocap: 12. Close round
   Autocap ->> Autocap: 13. Compute proportional shares
   Autocap ->> Datacap: 14. Mint DataCap to DC Wallets
   Datacap ->> DCWallet: 15. DC Wallet receives DataCap
 
-  Note over Autocap: Phase 4: Fee Burning
+  Note over Autocap: Stage 4: Fee Burning
   Autocap ->> Autocap: 16. Burn a portion of fees (⅓ burn, ⅓ PGF, ⅓ development – experimental)
   end
 ```
 
 ---
 
-## Phase 1: Deal creation & Publication
+### Stage 1: Deal creation & Publication
 
 Standard Filecoin paid-deal flow:
 
@@ -98,9 +98,9 @@ Standard Filecoin paid-deal flow:
 
 ---
 
-## Phase 2: Ticket Payment & Verification
+### Stage 2: Ticket Payment & Verification
 
-### Ticket payment
+#### Ticket payment
 
 An SP submits a ticket to Autocap.
 A **ticket** = a FIL transaction with:
@@ -111,7 +111,7 @@ A **ticket** = a FIL transaction with:
 
 The metadata (Deal ID, Wallet) is encoded in the transaction’s `params`.
 
-### Ticket verification
+#### Ticket verification
 
 Autocap checks:
 
@@ -124,16 +124,16 @@ Autocap checks:
 
 Invalid tickets → fee burned.
 
-⚠️ **Note**: the percentage of the deal payment which is accepted as a fee is yet to be precisely defined.
+⚠️ **Note**: the percentage of the deal payment that is accepted as a fee is yet to be precisely defined.
 
 ---
 
-## Phase 3: Round Processing & DataCap Distribution
+### Stage 3: Round Termination & DataCap Allocation
 
 Rounds occur every **x blocks**.
 ⚠️ **Note**: x is yet to be defined.
 
-At round end, Autocap distributes a **fixed DataCap prize `D`** across valid tickets:
+At the round end, Autocap distributes a **fixed DataCap prize `D`** across valid tickets:
 
 $$dc_i = D \cdot \frac{Fee_i}{\sum_j Fee_j}$$
 
@@ -150,7 +150,7 @@ Autocap mints DataCap via the [Metallocator](https://github.com/fidlabs/contract
 
 ---
 
-## Phase 4: Fee Burning
+### Stage 4: Fee Burning
 
 Collected FIL is split:
 
