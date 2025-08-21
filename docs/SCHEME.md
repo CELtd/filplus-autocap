@@ -22,7 +22,7 @@ A mechanism to:
 * If these conditions are met, the ticket is valid and the SP is eligible for a DataCap reward at the end of the round.
 * At the end of each round, Autocap distributes the DataCap prize proportionally to fees contributed:
   > Higher *on-chain deal payment* → Higher fee → Higher share of the DataCap reward.
-* Autocap mints (via the FIDL Metallocator) the DataCap reward into the `DC Wallet` in the ticket.
+* Autocap mints (via the FIDL Metallocator) the DataCap reward into the `DC Wallet` specified in the ticket.
 * Autocap burns a portion of collected fees, recirculating value into the Filecoin economy.
 
 Self-dealing is disincentivized:
