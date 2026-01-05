@@ -1,61 +1,22 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+# Compiler files
+cache/
+out/
 
-# Virtual environments
-.venv/
-venv/
-env/
+# Ignores development broadcast logs
+!/broadcast
+/broadcast/*/31337/
+/broadcast/**/dry-run/
+broadcast/
+# Docs
+docs/
 
-# Poetry virtualenvs (if not in project root)
-poetry.lock
-.cache/
-.python-version
-
-# Distribution / packaging
-build/
-dist/
-*.egg-info/
-
-# Pytest
-.pytest_cache/
-coverage.xml
-htmlcov/
-.tox/
-
-# Jupyter notebooks (if used)
-.ipynb_checkpoints/
-
-# VS Code and other IDE/editor settings
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# macOS system files
-.DS_Store
-
-# Logs
-*.log
-
-# Rust MVP Allocator
-target
+# Dotenv file
 .env
-.wallet.json
-.auction.json
-.registry.json
+
 .private/
 Cargo.lock
-lotus_wallet.key
-logs
-
-# Rust MVP SP client
-tests/sp_sender/target
-tests/sp_sender/.env
-tests/sp_sender/.wallet.json
-tests/sp_sender/.auction.json
-tests/sp_sender/.registry.json
-tests/sp_sender/.private
-tests/sp_sender/Cargo.lock
-tests/sp_sender/fund_wallets.sh
+MEMORY.md
+PLAN.md
+logs/
+target/
+tests/
