@@ -12,3 +12,11 @@ docs/
 
 # Dotenv file
 .env
+
+.private/
+Cargo.lock
+MEMORY.md
+PLAN.md
+logs/
+target/
+tests/
