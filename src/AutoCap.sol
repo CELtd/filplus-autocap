@@ -52,6 +52,8 @@ contract AutoCap is Ownable {
     error InvalidActorId();
     error NoFeesToWithdraw();
     error TransferFailed();
+    error ZeroAddress();
+    error NotAContract();
 
     // ============ Modifiers ============
 
@@ -68,6 +70,8 @@ contract AutoCap is Ownable {
     /// @notice Initializes the AutoCap registry
     /// @param _paymentContract Address of the Filecoin Pay contract
     constructor(address _paymentContract) Ownable(msg.sender) {
+        if (_paymentContract == address(0)) revert ZeroAddress();
+        if (_paymentContract.code.length == 0) revert NotAContract();
         paymentContract = _paymentContract;
     }
 
@@ -230,6 +234,9 @@ contract AutoCap is Ownable {
     /// @notice Update the payment contract address
     /// @param _newPaymentContract The new payment contract address
     function updatePaymentContract(address _newPaymentContract) external onlyOwner {
+        if (_newPaymentContract == address(0)) revert ZeroAddress();
+        if (_newPaymentContract.code.length == 0) revert NotAContract();
+
         address oldAddress = paymentContract;
         paymentContract = _newPaymentContract;
 
