@@ -31,6 +31,9 @@ contract AutoCapTest is Test {
         vm.deal(user2, 100 ether);
         vm.deal(user3, 100 ether);
 
+        // Etch code at paymentContract to pass NotAContract check
+        vm.etch(paymentContract, hex"00");
+
         vm.prank(owner);
         autocap = new AutoCap(paymentContract);
     }
@@ -41,6 +44,18 @@ contract AutoCapTest is Test {
         assertEq(autocap.owner(), owner);
         assertEq(autocap.paymentContract(), paymentContract);
         assertEq(autocap.currentRoundId(), 0);
+    }
+
+    function test_Constructor_ZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(AutoCap.ZeroAddress.selector);
+        new AutoCap(address(0));
+    }
+
+    function test_Constructor_NotAContract() public {
+        vm.prank(owner);
+        vm.expectRevert(AutoCap.NotAContract.selector);
+        new AutoCap(address(0xdead));
     }
 
     // ============ Round Creation Tests ============
@@ -460,6 +475,7 @@ contract AutoCapTest is Test {
 
     function test_UpdatePaymentContract() public {
         address newPaymentContract = address(0x200);
+        vm.etch(newPaymentContract, hex"00");
 
         vm.prank(owner);
         vm.expectEmit(true, true, false, false);
@@ -467,6 +483,18 @@ contract AutoCapTest is Test {
         autocap.updatePaymentContract(newPaymentContract);
 
         assertEq(autocap.paymentContract(), newPaymentContract);
+    }
+
+    function test_UpdatePaymentContract_ZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(AutoCap.ZeroAddress.selector);
+        autocap.updatePaymentContract(address(0));
+    }
+
+    function test_UpdatePaymentContract_NotAContract() public {
+        vm.prank(owner);
+        vm.expectRevert(AutoCap.NotAContract.selector);
+        autocap.updatePaymentContract(address(0xdead));
     }
 
     function test_UpdatePaymentContract_OnlyOwner() public {
