@@ -3,6 +3,8 @@ pragma solidity ^0.8.20;
 
 import {Test} from "forge-std/Test.sol";
 import {AutoCap} from "../src/AutoCap.sol";
+import {CommonTypes} from "filecoin-solidity/v0.8/types/CommonTypes.sol";
+import {Misc} from "filecoin-solidity/v0.8/utils/Misc.sol";
 
 contract AutoCapTest is Test {
     AutoCap public autocap;
@@ -24,12 +26,44 @@ contract AutoCapTest is Test {
     event FeesWithdrawn(address indexed owner, uint256 amount);
     event PaymentContractUpdated(address indexed oldAddress, address indexed newAddress);
 
+    // Helper to mock actor existence check
+    // The Actor library uses delegatecall to 0xfe00000000000000000000000000000000000005
+    // We need to mock this precompile to return proper responses
+    function mockActorExists(uint64 actorId, bool exists) internal {
+        address callActorIdPrecompile = 0xfe00000000000000000000000000000000000005;
+        
+        // The call data format: abi.encode(uint64 method_num, uint256 value, uint64 flags, uint64 codec, bytes raw_request, FilActorId target)
+        // For actorExists check: method_num=0, value=0, flags=1 (READ_ONLY), codec=0 (NONE_CODEC), raw_request="", target=actorId
+        bytes memory callData = abi.encode(
+            uint64(0),      // method_num
+            uint256(0),      // value
+            uint64(1),       // READ_ONLY_FLAG
+            uint64(0),       // NONE_CODEC
+            bytes(""),       // raw_request
+            CommonTypes.FilActorId.wrap(actorId) // target
+        );
+        
+        // Response format: abi.encode(int256 exit_code, uint64 codec, bytes return_value)
+        int256 exitCode = exists ? int256(0) : int256(-6); // -6 is SYS_NOT_FOUND
+        bytes memory response = abi.encode(exitCode, uint64(Misc.NONE_CODEC), bytes(""));
+        
+        vm.mockCall(callActorIdPrecompile, callData, response);
+    }
+
     function setUp() public {
         // Deal ETH to test accounts
         vm.deal(owner, 100 ether);
         vm.deal(user1, 100 ether);
         vm.deal(user2, 100 ether);
         vm.deal(user3, 100 ether);
+
+        // Etch code at paymentContract to pass NotAContract check
+        vm.etch(paymentContract, hex"00");
+
+        // Mock actor existence for known actor IDs (they exist)
+        mockActorExists(ACTOR_ID_1, true);
+        mockActorExists(ACTOR_ID_2, true);
+        mockActorExists(ACTOR_ID_3, true);
 
         vm.prank(owner);
         autocap = new AutoCap(paymentContract);
@@ -41,6 +75,18 @@ contract AutoCapTest is Test {
         assertEq(autocap.owner(), owner);
         assertEq(autocap.paymentContract(), paymentContract);
         assertEq(autocap.currentRoundId(), 0);
+    }
+
+    function test_Constructor_ZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(AutoCap.ZeroAddress.selector);
+        new AutoCap(address(0));
+    }
+
+    function test_Constructor_NotAContract() public {
+        vm.prank(owner);
+        vm.expectRevert(AutoCap.NotAContract.selector);
+        new AutoCap(address(0xdead));
     }
 
     // ============ Round Creation Tests ============
@@ -220,6 +266,24 @@ contract AutoCapTest is Test {
         vm.prank(user1);
         vm.expectRevert(AutoCap.InvalidActorId.selector);
         autocap.register{value: REGISTRATION_FEE}(roundId, 0);
+    }
+
+    function test_Register_NonExistentActorId() public {
+        uint256 startTime = block.timestamp;
+        uint256 endTime = block.timestamp + 7 days;
+
+        vm.startPrank(owner);
+        uint256 roundId = autocap.createRound(startTime, endTime, REGISTRATION_FEE, TOTAL_DATACAP);
+        vm.stopPrank();
+
+        uint64 nonExistentId = 9999;
+        
+        // Mock actor as non-existent (returns exit code -6)
+        mockActorExists(nonExistentId, false);
+
+        vm.prank(user1);
+        vm.expectRevert(AutoCap.InvalidActorId.selector);
+        autocap.register{value: REGISTRATION_FEE}(roundId, nonExistentId);
     }
 
     function test_Register_DifferentRounds() public {
@@ -460,6 +524,7 @@ contract AutoCapTest is Test {
 
     function test_UpdatePaymentContract() public {
         address newPaymentContract = address(0x200);
+        vm.etch(newPaymentContract, hex"00");
 
         vm.prank(owner);
         vm.expectEmit(true, true, false, false);
@@ -467,6 +532,18 @@ contract AutoCapTest is Test {
         autocap.updatePaymentContract(newPaymentContract);
 
         assertEq(autocap.paymentContract(), newPaymentContract);
+    }
+
+    function test_UpdatePaymentContract_ZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(AutoCap.ZeroAddress.selector);
+        autocap.updatePaymentContract(address(0));
+    }
+
+    function test_UpdatePaymentContract_NotAContract() public {
+        vm.prank(owner);
+        vm.expectRevert(AutoCap.NotAContract.selector);
+        autocap.updatePaymentContract(address(0xdead));
     }
 
     function test_UpdatePaymentContract_OnlyOwner() public {
@@ -507,9 +584,23 @@ contract AutoCapTest is Test {
         uint256 roundId = autocap.createRound(startTime, endTime, REGISTRATION_FEE, TOTAL_DATACAP);
         vm.stopPrank();
 
+        // Mock actor as existing for this random actor ID
+        mockActorExists(actorId, true);
+
         vm.prank(user1);
         autocap.register{value: REGISTRATION_FEE}(roundId, actorId);
 
         assertEq(autocap.getParticipantDetails(roundId, user1), actorId);
+    }
+
+    function test_ActorExists() public {
+        // Test with existing actor
+        mockActorExists(ACTOR_ID_1, true);
+        assertTrue(autocap.actorExists(ACTOR_ID_1));
+
+        // Test with non-existing actor
+        uint64 nonExistentId = 9999;
+        mockActorExists(nonExistentId, false);
+        assertFalse(autocap.actorExists(nonExistentId));
     }
 }

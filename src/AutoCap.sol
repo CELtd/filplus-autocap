@@ -2,6 +2,9 @@
 pragma solidity ^0.8.20;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Actor} from "filecoin-solidity/v0.8/utils/Actor.sol";
+import {Misc} from "filecoin-solidity/v0.8/utils/Misc.sol";
+import {CommonTypes} from "filecoin-solidity/v0.8/types/CommonTypes.sol";
 
 /// @title AutoCap
 /// @notice Registry and Coordination Layer for the Burn-to-Earn program
@@ -52,6 +55,14 @@ contract AutoCap is Ownable {
     error InvalidActorId();
     error NoFeesToWithdraw();
     error TransferFailed();
+    error ZeroAddress();
+    error NotAContract();
+    error FailToCallActor();
+
+    /// @notice syscall error number for NotFound (resource not found)
+    /// @dev This is different from actor-level USR_NOT_FOUND (17). This error is returned
+    ///      at the syscall level when the target actor doesn't exist. On FVM this is -6.
+    int256 constant SYS_NOT_FOUND = -6;
 
     // ============ Modifiers ============
 
@@ -68,6 +79,8 @@ contract AutoCap is Ownable {
     /// @notice Initializes the AutoCap registry
     /// @param _paymentContract Address of the Filecoin Pay contract
     constructor(address _paymentContract) Ownable(msg.sender) {
+        if (_paymentContract == address(0)) revert ZeroAddress();
+        if (_paymentContract.code.length == 0) revert NotAContract();
         paymentContract = _paymentContract;
     }
 
@@ -123,7 +136,7 @@ contract AutoCap is Ownable {
             revert AlreadyRegistered();
         }
 
-        if (_datacapActorId == 0) {
+        if (_datacapActorId == 0 || !actorExists(_datacapActorId)) {
             revert InvalidActorId();
         }
         // @dev: Do actor id ownership check here if needed
@@ -135,6 +148,18 @@ contract AutoCap is Ownable {
     }
 
     // ============ View Functions ============
+
+    /// @notice Checks if an actor exists on-chain by attempting to call it
+    /// @dev Calls method 0 with no value. If the actor doesn't exist, the syscall returns
+    ///      error -6 (SYS_NOT_FOUND). If the actor exists, it may return 0 (success) or another
+    ///      error code, but any error other than NotFound indicates the actor exists.
+    /// @param _actorId Actor id to check for existence
+    /// @return exists true if the actor exists, false otherwise
+    function actorExists(uint64 _actorId) public view returns (bool exists) {
+        CommonTypes.FilActorId target = CommonTypes.FilActorId.wrap(_actorId);
+        (int256 exit_code,) = Actor.callByIDReadOnly(target, 0, Misc.NONE_CODEC, new bytes(0));
+        return exit_code != SYS_NOT_FOUND;
+    }
 
     /// @notice Get participants for a round (paginated)
     /// @param _roundId The round ID
@@ -230,6 +255,9 @@ contract AutoCap is Ownable {
     /// @notice Update the payment contract address
     /// @param _newPaymentContract The new payment contract address
     function updatePaymentContract(address _newPaymentContract) external onlyOwner {
+        if (_newPaymentContract == address(0)) revert ZeroAddress();
+        if (_newPaymentContract.code.length == 0) revert NotAContract();
+
         address oldAddress = paymentContract;
         paymentContract = _newPaymentContract;
 
